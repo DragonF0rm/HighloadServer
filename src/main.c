@@ -16,6 +16,6 @@ int main(int argc, char **argv) {
         puts("Invalid port");
         return 1;
     }
-    log(IMPORTANT, "\nHighloadServer v%s is listening on port %d", VERSION, port);
+    log(IMPORTANT, "\n%s v%s is listening on port %d", APP_NAME, VERSION, port);
     return listen_and_serve((u_int16_t)port);
 }
