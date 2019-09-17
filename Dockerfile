@@ -1,5 +1,5 @@
 FROM alpine:latest
-RUN chmod 777 /var/iwww/html
+RUN chmod 777 /var/www/html
 COPY ./bin/HighloadServer /bin/httpd
 COPY ./etc/httpd.conf /etc/httpd.conf
 
