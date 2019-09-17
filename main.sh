@@ -16,5 +16,3 @@ make
 #ctest ..
 
 cd ${currentDir}
-
-${basePath}/tmp/bin/HighloadServer $1  #Выполняем скрипт

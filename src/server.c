@@ -14,6 +14,7 @@
 #include "../include/http.h"
 
 static void respond(struct evbuffer* output, struct http_response_t* resp) {
+    //TODO add checks for evbuffer_add* functions
     if (output == NULL || resp == NULL) {
         log(ERROR, "Invalid function arguments");
         return;
@@ -65,29 +66,25 @@ static void respond(struct evbuffer* output, struct http_response_t* resp) {
         }
     }
     evbuffer_add(output, "\r\n", 2);
-    //TODO evbuffer add connection
-    const size_t buffer_len = 64;
-    char buffer[buffer_len];
-    size_t header_len = get_date_header(buffer, buffer_len);
-    if (header_len == 0) {
-        log(ERROR, "Unable to get Date header");
-    } else {
-        evbuffer_add(output, buffer, header_len);
-    }
 
-    evbuffer_add(output, STR_HEADER_SERVER, strlen(STR_HEADER_SERVER));
-    //TODO evbuffer add additional headers
-    //TODO evbuffer add response body
+    struct http_header_t* header_ptr = resp->headers;
+    while(header_ptr != NULL) {
+        evbuffer_add(output, header_ptr->text, header_ptr->len);
+        header_ptr = header_ptr->next;
+    }
+    evbuffer_add(output, "\r\n", 2);
+
+    if (resp->file_to_send.fd > 0 && resp->file_to_send.len > 0) {
+        evbuffer_add_file(output, resp->file_to_send.fd, 0, resp->file_to_send.len);
+    }
 }
 
-static void respond_with_400(struct evbuffer* output, enum http_version_t version) {
+static void respond_with_err(struct evbuffer* output, enum http_state_t code) {
     if (output == NULL) {
         log(ERROR, "Invalid function arguments");
         return;
     }
-    struct http_response_t response = HTTP_RESPONSE_INITIALIZER;
-    response.code = BAD_REQUEST;
-    response.http_version = version;
+    struct http_response_t response = build_default_http_response(code);
     respond(output, &response);
 }
 
@@ -99,67 +96,93 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
    struct evbuffer_ptr req_headers_end = evbuffer_search(input, "\r\n\r\n", 4, NULL);
    if (req_headers_end.pos < 0) {
        log(WARNING, "Unable to find headers end, input buffer len %d bytes",evbuffer_get_length(input));
-       //TODO respond with 400
+       respond_with_err(output, BAD_REQUEST);
        return;
    }
    if (evbuffer_ptr_set(input, &req_headers_end, 3, EVBUFFER_PTR_ADD) < 0) {
        log(ERROR, "Unable to move req_headers_end evbuffer_ptr");
-       //TODO respond with 500
+       respond_with_err(output, INTERNAL_SERVER_ERROR);
        return;
    }
-   //req_headers_end is now points to the last byte of CRLFCRLF
+   // req_headers_end is now points to the last byte of CRLFCRLF
 
    char* req_str = malloc((size_t)req_headers_end.pos + 1);
    if (req_str == NULL) {
        log(ERROR, "Unable to allocate memory");
-       //TODO respond with 500
+       respond_with_err(output, INTERNAL_SERVER_ERROR);
        return;
    }
    req_str[req_headers_end.pos] = '\0';
    if (evbuffer_remove(input, req_str, (size_t)req_headers_end.pos) < 0) {
        log(ERROR, "Unable to copy data from input evbuffer");
-       //TODO respond with 500
+       respond_with_err(output, INTERNAL_SERVER_ERROR);
+       free(req_str);
        return;
    }
    log(DEBUG, "req_str before parsing: <%s>", req_str);
 
    struct http_request_t req = HTTP_REQUEST_INITIALIZER;
-
-   int parse_result = parse_http_request(req_str, &req);
+   enum http_state_t parse_result = parse_http_request(req_str, &req);
    log(DEBUG, "parse_request_result: <%d>", parse_result);
    switch (parse_result) {
-       case 0: {
+       case OK: {
            log(INFO, "HTTP Request was parsed! METHOD: <%d>; URI: <%s>; VERSION: <%d>", req.method, req.URI, req.http_version);
            break;
        }
-       case -1: {
-           log(INFO, "HTTP Request was not parsed: req_str contained only empty lines");
+       case BAD_REQUEST: {
+           log(INFO, "HTTP Request was not parsed: BAD_REQUEST");
+           respond_with_err(output, BAD_REQUEST);
            free(req_str);
            return;
        }
-       case BAD_REQUEST: {
-           log(INFO, "HTTP Request was not parsed: BAD_REQUEST");
-           //TODO respond 400
-           break;
-       }
        case METHOD_NOT_ALLOWED: {
            log(INFO, "HTTP Request was not parsed: METHOD_NOT_ALLOWED");
-           //TODO respond 405
-           break;
+           respond_with_err(output, METHOD_NOT_ALLOWED);
+           free(req_str);
+           return;
        }
        case INTERNAL_SERVER_ERROR: {
            log(ERROR, "HTTP Request was not parsed: INTERNAL_SERVER_ERROR");
-           //TODO respond 500
-           break;
+           respond_with_err(output, INTERNAL_SERVER_ERROR);
+           free(req_str);
+           return;
        }
        default: {
            log(ERROR, "Unexpected http request parsing return code: %d", parse_result);
+           respond_with_err(output, INTERNAL_SERVER_ERROR);
            free(req_str);
            return;
        }
    }
 
-   //TODO busyness logic
+   struct http_response_t resp = HTTP_RESPONSE_INITIALIZER;
+   enum http_state_t build_result = build_http_response(&req, &resp);
+   switch (build_result) {
+       case OK: {
+           log(INFO, "HTTP response was built!");
+           break;
+       }
+       case FORBIDDEN: {
+           log(INFO, "Can't build http response: access to file is forbidden");
+           respond_with_err(output, FORBIDDEN);
+           free(req_str);
+           return;
+       }
+       case NOT_FOUND: {
+           log(INFO, "Can't build http response: file was not found");
+           respond_with_err(output, NOT_FOUND);
+           free(req_str);
+           return;
+       }
+       default: {
+           log(ERROR, "Unexpected http response building return code: %d", build_result);
+           respond_with_err(output, INTERNAL_SERVER_ERROR);
+           free(req_str);
+           return;
+       }
+   }
+
+   respond(output, &resp); //TODO make correct connection header handling
 
    free(req_str);
 }

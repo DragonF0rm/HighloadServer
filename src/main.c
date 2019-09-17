@@ -7,11 +7,15 @@
 #include "../include/log.h"
 
 int main(int argc, char **argv) {
-    int port = DEFAULT_PORT;
-
     if (argc > 1) {
-        port = atoi(argv[1]);
+        if(conf_init(argv[1])) {
+            log(FATAL, "Unable to init config with .conf file");
+        }
+    } else {
+        log(WARNING, ".conf config file does not passed, using defaults");
     }
+
+    int port = DEFAULT_PORT;
     if (port<=0 || port>65535) {
         puts("Invalid port");
         return 1;

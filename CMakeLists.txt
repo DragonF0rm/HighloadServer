@@ -6,7 +6,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 find_package(Threads)
 
-add_executable(HighloadServer src/main.c src/server.c src/log.c include/server.h include/log.h include/config.h src/http.c include/http.h)
+add_executable(HighloadServer
+        src/main.c
+        src/config.c include/config.h
+        src/server.c include/server.h
+        src/log.c include/log.h
+        src/http.c include/http.h
+        src/file_system.c include/file_system.h)
 
 target_link_libraries(HighloadServer event)
 target_link_libraries(HighloadServer ${CMAKE_THREAD_LIBS_INIT} )

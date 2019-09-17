@@ -2,35 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdbool.h>
 
 #include "../include/http.h"
 #include "../include/log.h"
-
-/*ssize_t count_request_headers(const char* req_str) {
-    if (req_str == NULL) {
-        log(ERROR, "Invalid function arguments");
-        return -1;
-    }
-
-    const char* delim = "\r\n";
-    const int delim_len = 2;
-    const char* cursor = req_str;
-    const char* prev_cursor = NULL;
-    ssize_t  headers_count = 0;
-
-    while(1) {
-        prev_cursor = cursor;
-        cursor = strstr(cursor, delim);
-        if(cursor == NULL || prev_cursor-cursor == delim_len) {
-            break;
-        }
-        cursor += delim_len;
-        headers_count++;
-    }
-
-    headers_count-=1; //There is a single CRLF between Request-Line and Headers
-    return headers_count;
-}*/
 
 static void parse_http_req_method(char** req_str, struct http_request_t* req) {
     if (req_str == NULL || *req_str == NULL || req == NULL) {
@@ -55,7 +30,8 @@ static void parse_http_req_method(char** req_str, struct http_request_t* req) {
 }
 
 static void parse_http_req_uri(char** req_str, struct http_request_t* req) {
-    //TODO parce percent-encoded uri
+    //TODO parse percent-encoded uri
+    //TODO parse URI correctly
     if (req_str == NULL || *req_str == NULL || req == NULL) {
         log(ERROR, "Invalid function arguments");
         return;
@@ -94,14 +70,53 @@ static void parse_http_req_proto_ver(char** req_str, struct http_request_t* req)
     req->http_version = VERSION_UNDEFINED;
 }
 
-static void parse_http_req_headers(char* req_str, struct http_request_t* req) {
-    //TODO develop?
+static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
+    if (req_str == NULL || *req_str == NULL || req == NULL) {
+        log(ERROR, "Invalid function arguments");
+        return;
+    }
+
+    struct http_header_t* header_ptr = req->headers;
+    const char* delim = "\r\n";
+    const int delim_len = 2;
+    char** cursor = req_str;
+    char** prev_cursor = NULL;
+    size_t header_len = 0;
+
+    while(1) {
+        struct http_header_t header = HTTP_HEADER_INITIALIZER;
+        *header_ptr = header;
+        header_ptr->text = *cursor;
+        prev_cursor = cursor;
+        *cursor = strstr(*cursor, delim);
+        header_len = *prev_cursor - *cursor;
+        if(header_len == delim_len) {
+            *cursor += delim_len;
+            break;
+        }
+        if (*cursor == NULL) {
+            log(ERROR, "Can't parse headers: empty line does not reached");
+            req->headers = NULL;
+            return;
+        }
+        header_ptr->len = header_len + delim_len; //CRLF is a part of a header too
+        *cursor += delim_len;
+        header_ptr = header_ptr->next;
+    }
 }
 
-int parse_http_request(char* req_str, struct http_request_t* req) {
+/*static void parse_http_req_body(char** req_str, struct http_request_t* req) {
+    if (req_str == NULL || *req_str == NULL || req == NULL || req->headers == NULL) {
+        log(ERROR, "Invalid function arguments");
+        return;
+    }
+    //TODO develop?
+}*/
+
+enum http_state_t parse_http_request(char* req_str, struct http_request_t* req) {
     if (req_str == NULL || req ==NULL) {
         log(ERROR, "Invalid function arguments");
-        return -1;
+        return INTERNAL_SERVER_ERROR;
     }
 
     char* cursor = req_str;
@@ -110,7 +125,7 @@ int parse_http_request(char* req_str, struct http_request_t* req) {
     }
     if (*cursor == '\0') {
         log(INFO, "Skipped empty req_str while parsing request");
-        return -1;
+        return BAD_REQUEST;
     }
 
     parse_http_req_method(&cursor, req);
@@ -130,33 +145,217 @@ int parse_http_request(char* req_str, struct http_request_t* req) {
         return BAD_REQUEST;
     }
 
-    //parse_http_req_headers(&cursor, req);
+    parse_http_req_headers(&cursor, req);
+    if (req->headers == NULL) {
+        log(DEBUG, "parse_http_request returning BAD_REQUEST, unable to parse headers");
+        return BAD_REQUEST;
+    }
 
+    return OK;
+}
+
+static int build_date_header(struct http_header_t* header) {
+    if (header == NULL) {
+        log(ERROR, "Invalid function arguments");
+        return -1;
+    }
+
+    const size_t buffer_len = 64; //TODO put in config??
+    char buffer[buffer_len];
+
+    time_t raw_time; //timestamp
+    if (time(&raw_time) < 0) {
+        log(ERROR, "Unable to get calendar time");
+        return -1;
+    }
+
+    struct tm* time_info = localtime(&raw_time); //datetime
+    if (time_info == NULL) {
+        log(ERROR, "Unable to parse raw_time into time_info");
+        return -1;
+    }
+
+    size_t header_len = strftime(buffer, buffer_len, "Date: %a, %d %b %Y %X %Z\r\n", time_info);
+    if (header_len == 0) {
+        log(ERROR, "Can not build Date header: buffer is too small");
+        return -1;
+    }
+
+    header->text = buffer;
+    header->len = strlen(buffer);
+    header->next = NULL;
     return 0;
 }
 
-size_t get_date_header(char* buffer, size_t len) {
-    if (buffer == NULL) {
+static int build_content_length_header(struct http_header_t* header, int64_t content_len) {
+    if (header == NULL) {
         log(ERROR, "Invalid function arguments");
-        return 0;
+        return -1;
     }
-    time_t rawtime; //timestamp
-    if (time(&rawtime) < 0) {
-        log(ERROR, "Unable to get calendar time");
-        return 0;
+    const size_t buffer_len = 64; //TODO put in config??
+    char buffer[buffer_len];
+    strcpy(buffer, STR_CONTENT_LENGTH_HEADER);
+    sprintf(buffer + strlen(buffer), "%lu\r\n", content_len);
+    header->text = buffer;
+    header->len = strlen(buffer);
+    header->next = NULL;
+    return 0;
+}
+
+static int build_content_type_header(struct http_header_t* header, enum mime_t mime_type) {
+    if (header == NULL) {
+        log(ERROR, "Invalid function arguments");
+        return -1;
+    }
+    const size_t buffer_len = 64; //TODO put in config??
+    char buffer[buffer_len];
+    strcpy(buffer, STR_CONTENT_TYPE_HEADER);
+    strcat(buffer, mime_type_to_str(mime_type));
+    strcat(buffer, "\r\n\0");
+    header->text = buffer;
+    header->len = strlen(buffer);
+    header->next = NULL;
+    return 0;
+}
+
+struct http_response_t build_default_http_response(enum http_state_t code) {
+    switch (code) {
+        // NOTE: there are no default response for 200 OK
+        case BAD_REQUEST: {
+            break;
+        }
+        case FORBIDDEN: {
+            break;
+        }
+        case NOT_FOUND: {
+            break;
+        }
+        case METHOD_NOT_ALLOWED: {
+            break;
+        }
+        case INTERNAL_SERVER_ERROR: {
+            break;
+        }
+        default: {
+            code = INTERNAL_SERVER_ERROR;
+            break;
+        }
     }
 
-    struct tm *timeinfo = localtime(&rawtime); //datetime
-    if (timeinfo == NULL) {
-        log(ERROR, "Unable to parse rowtime into timeinfo");
-        return 0;
+    struct http_header_t header_list = HTTP_HEADER_INITIALIZER;
+    struct http_header_t* header_ptr = &header_list;
+
+    *header_ptr = (struct http_header_t){
+            STR_CONNECTION_CLOSE_HEADER,
+            strlen(STR_CONNECTION_CLOSE_HEADER),
+            NULL
+    };
+    header_ptr = header_ptr->next;
+
+    struct http_header_t date_header = HTTP_HEADER_INITIALIZER;
+    int build_result = build_date_header(&date_header);
+    if (build_result < 0) {
+        log(ERROR, "Unable to build Date header");
+        *header_ptr = (struct http_header_t){
+                STR_DEFAULT_DATE_HEADER,
+                strlen(STR_DEFAULT_DATE_HEADER),
+                NULL
+        };
+    } else {
+        *header_ptr = date_header;
+    }
+    header_ptr = header_ptr->next;
+
+    *header_ptr = (struct http_header_t){
+            STR_SERVER_HEADER,
+            strlen(STR_SERVER_HEADER),
+            NULL
+    };
+    header_ptr = header_ptr->next;
+
+    struct http_response_t resp = HTTP_RESPONSE_INITIALIZER;
+    resp.code = code;
+    resp.http_version = HTTPv1_1; //TODO put in the config???
+    resp.headers = &header_list;
+
+    return resp;
+}
+
+enum http_state_t build_http_response(struct http_request_t* req, struct http_response_t* resp) {
+    struct http_header_t header_list = HTTP_HEADER_INITIALIZER;
+    struct http_header_t* header_ptr = &header_list;
+
+    *header_ptr = (struct http_header_t){
+            STR_CONNECTION_CLOSE_HEADER,
+            strlen(STR_CONNECTION_CLOSE_HEADER),
+            NULL
+    };
+    header_ptr = header_ptr->next;
+
+    struct http_header_t date_header = HTTP_HEADER_INITIALIZER;
+    int build_result = build_date_header(&date_header);
+    if (build_result < 0) {
+        log(ERROR, "Unable to build Date header");
+        *header_ptr = (struct http_header_t){
+                STR_DEFAULT_DATE_HEADER,
+                strlen(STR_DEFAULT_DATE_HEADER),
+                NULL
+        };
+    } else {
+        *header_ptr = date_header;
+    }
+    header_ptr = header_ptr->next;
+
+    bool should_get_fd = req->method==GET;
+    struct file_t file_to_send = FILE_INITIALIZER;
+    enum file_state_t inspect_result = inspect_file(req->URI, &file_to_send, should_get_fd);
+    switch (inspect_result) {
+        case FILE_STATE_OK: {
+            break;
+        }
+        case FILE_STATE_NOT_FOUND: {
+            return NOT_FOUND;
+        }
+        case FILE_STATE_FORBIDDEN: {
+            return FORBIDDEN;
+        }
+        case FILE_STATE_INTERNAL_ERROR: {
+            return INTERNAL_SERVER_ERROR;
+        }
+        default: {
+            log(ERROR, "Unknown return code: %d", inspect_result);
+            return INTERNAL_SERVER_ERROR;
+        }
     }
 
-    size_t header_len = strftime(buffer, len, "Date: %a, %d %b %Y %X %Z\r\n", timeinfo);
-    if (header_len == 0) {
-        log(ERROR, "Can not build Date header: buffer is too small");
-        return 0;
+    struct http_header_t content_length_header = HTTP_HEADER_INITIALIZER;
+    build_result = build_content_length_header(&content_length_header, file_to_send.len);
+    if (build_result < 0) {
+        log(WARNING, "Unable to build Content-Length header");
+    } else {
+        *header_ptr = content_length_header;
+        header_ptr = header_ptr -> next;
     }
 
-    return header_len;
+    struct http_header_t content_type_header = HTTP_HEADER_INITIALIZER;
+    build_result = build_content_type_header(&content_type_header, file_to_send.mime_type);
+    if (build_result) {
+        log(WARNING, "Unable to build Content-Type header");
+    } else {
+        *header_ptr = content_type_header;
+        header_ptr = header_ptr -> next;
+    }
+
+    *header_ptr = (struct http_header_t){
+            STR_SERVER_HEADER,
+            strlen(STR_SERVER_HEADER),
+            NULL
+    };
+    header_ptr = header_ptr->next;
+
+    resp->code = OK;
+    resp->http_version = req->http_version;
+    resp->headers = &header_list;
+    resp->file_to_send = file_to_send;
+    return OK;
 }
