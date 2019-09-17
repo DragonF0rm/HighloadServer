@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.0)
 project(HighloadServer C)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../bin)
 
 find_package(Threads)
 
