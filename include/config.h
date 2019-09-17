@@ -11,8 +11,7 @@ int conf_init(const char *conf_path); //Call once
 #define APP_NAME "HighloadServer"
 #define DEBUG_MODE
 #define DEFAULT_PORT 8000
-inline const int _get_cpu_limit();
-#define CPU_LIMIT _get_cpu_limit()
+int get_cpu_limit(void);
 
 //Logger settings
 #define LOG_LEVEL 1 //0 = DEBUG ... 5 = FATAL
@@ -20,7 +19,6 @@ inline const int _get_cpu_limit();
 //#define LOG_FULL_FILE_PATH
 
 //FileSystem settings
-inline const char* const _get_document_root();
-#define DOCUMENT_ROOT _get_document_root()
+char* get_document_root(void);
 
 #endif //HIGHLOADSERVER_CONFIG_H

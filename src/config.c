@@ -1,17 +1,16 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <gmpxx.h>
 #include <memory.h>
 #include "../include/config.h"
 
 int cpu_limit = 1;
-inline const int _get_cpu_limit() {
+int get_cpu_limit(void) {
     return cpu_limit;
 }
 
 char* document_root = "";
-inline const char* const _get_document_root() {
+char* get_document_root(void) {
     return document_root;
 }
 
@@ -62,4 +61,6 @@ int conf_init(const char *conf_path) {
             continue;
         }
     }
+
+    return 0;
 }

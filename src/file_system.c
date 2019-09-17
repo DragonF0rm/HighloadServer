@@ -8,6 +8,24 @@
 #include "../include/log.h"
 #include "../include/config.h"
 
+char* const STR_MIME_APPLICATION_OCTET_STREAM = "application/octet-stream\0";
+char* const STR_MIME_TEXT_HTML = "text/html\0";
+char* const STR_MIME_TEXT_CSS = "text/css\0";
+char* const STR_MIME_APPLICATION_JAVASCRIPT = "application/javascript\0";
+char* const STR_MIME_IMAGE_JPEG = "image/jpeg\0";
+char* const STR_MIME_IMAGE_PNG = "image/png\0";
+char* const STR_MIME_IMAGE_GIF = "image/gif\0";
+char* const STR_MIME_APPLICATION_X_SHOCKWAVE_FLASH = "application/x-shockwave-flash\0";
+
+const char* const EXT_HTML = ".html\0";
+const char* const EXT_CSS = ".css\0";
+const char* const EXT_JS = ".js\0";
+const char* const EXT_JPG = ".jpg\0";
+const char* const EXT_JPEG = ".jpeg\0";
+const char* const EXT_PNG = ".png\0";
+const char* const EXT_GIF = ".gif\0";
+const char* const EXT_SWF = ".swf\0";
+
 char* mime_type_to_str(enum mime_t mime_type) {
     switch(mime_type) {
         case MIME_TYPE_APPLICATION_OCTET_STREAM: {
@@ -94,7 +112,8 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
 
     char absolute_path[4096];
     absolute_path[0] = '\0';
-    strcat(absolute_path, DOCUMENT_ROOT);
+    char* document_root = get_document_root();
+    strcat(absolute_path, document_root);
     if (absolute_path[strlen(absolute_path)] - 1 != '/') {
         strcat(absolute_path, "/\0");
     }

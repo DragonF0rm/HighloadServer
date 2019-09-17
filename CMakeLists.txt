@@ -9,10 +9,10 @@ find_package(Threads)
 add_executable(HighloadServer
         src/main.c
         src/config.c include/config.h
+        src/file_system.c include/file_system.h
         src/server.c include/server.h
         src/log.c include/log.h
-        src/http.c include/http.h
-        src/file_system.c include/file_system.h)
+        src/http.c include/http.h)
 
 target_link_libraries(HighloadServer event)
 target_link_libraries(HighloadServer ${CMAKE_THREAD_LIBS_INIT} )
