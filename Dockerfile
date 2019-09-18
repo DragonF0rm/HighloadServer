@@ -1,6 +1,4 @@
-FROM alpine:latest
-RUN mkdir /var/www
-RUN mkdir /var/www/html
+FROM ubuntu:latest
 COPY ./bin/HighloadServer /bin/httpd
 
 ENTRYPOINT ["/bin/httpd", "/etc/httpd.conf"]
