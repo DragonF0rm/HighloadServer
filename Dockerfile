@@ -1,9 +1,6 @@
 FROM alpine:latest
 COPY ./bin/HighloadServer /bin/httpd
-RUN mkdir /var/www
-RUN mkdir /var/www/html
-ADD /var/www/html /var/www/html
-ADD /etc/httpd.conf /etc/httpd.conf
+VOLUME /var/www/html
 EXPOSE 80
 ENTRYPOINT ["/bin/httpd", "/etc/httpd.conf"]
 
