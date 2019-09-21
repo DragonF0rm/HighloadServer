@@ -112,7 +112,7 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
 
     char absolute_path[4096];
     absolute_path[0] = '\0';
-    char* document_root = get_document_root();
+    char* document_root = DOCUMENT_ROOT;
     strcat(absolute_path, document_root);
     if (absolute_path[strlen(absolute_path)] - 1 != '/') {
         strcat(absolute_path, "/\0");

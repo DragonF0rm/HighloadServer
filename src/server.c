@@ -242,7 +242,7 @@ int listen_and_serve(u_int16_t port) {
            -1,
            (struct sockaddr*)&sin, sizeof(sin));
    if (!listener) {
-      log(FATAL, "Couldn't create listener, ERRNO: %d", errno);
+      log(FATAL, "Couldn't create listener, ERRNO: %d %s", errno, strerror(errno));
       return EXIT_FAILURE;
    }
    evconnlistener_set_error_cb(listener, accept_error_cb);

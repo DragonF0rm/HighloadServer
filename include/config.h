@@ -1,17 +1,17 @@
 #ifndef HIGHLOADSERVER_CONFIG_H
 #define HIGHLOADSERVER_CONFIG_H
 
+void init_config(int cpu_limit_arg, const char* document_root_arg);
 //Ручки, заданные через булевы переменные проверяются через #ifdef
 //Для отключения просто закомментировать
-
-int conf_init(const char *conf_path); //Call once
 
 //General settings
 #define VERSION "1.0"
 #define APP_NAME "HighloadServer"
 #define DEBUG_MODE
-#define DEFAULT_PORT 8000
-int get_cpu_limit(void);
+#define DEFAULT_PORT 80
+int _get_cpu_limit(void);
+#define CPU_LIMIT _get_cpu_limit()
 
 //Logger settings
 #define LOG_LEVEL 1 //0 = DEBUG ... 5 = FATAL
@@ -19,6 +19,7 @@ int get_cpu_limit(void);
 //#define LOG_FULL_FILE_PATH
 
 //FileSystem settings
-char* get_document_root(void);
+char* _get_document_root(void);
+#define DOCUMENT_ROOT _get_document_root()
 
 #endif //HIGHLOADSERVER_CONFIG_H
