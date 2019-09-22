@@ -81,17 +81,17 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
     size_t header_len = 0;
 
     while(1) {
+        if (*cursor[0] == '\r' && *cursor[1] == '\n') {
+            *cursor += delim_len;
+            break;
+        }
         struct http_header_t header = HTTP_HEADER_INITIALIZER;
         *header_ptr = &header;
         (*header_ptr)->text = *cursor;
         prev_cursor_val = *cursor;
         *cursor = strstr(*cursor, delim);
-        header_len = prev_cursor_val - *cursor;
+        header_len = *cursor - prev_cursor_val;
         log(DEBUG, "header_len: %d", header_len);
-        if(header_len == delim_len) {
-            *cursor += delim_len;
-            break;
-        }
         if (*cursor == NULL) {
             log(ERROR, "Can't parse headers: empty line does not reached");
             req->headers = NULL;
