@@ -67,13 +67,21 @@ static void parse_http_req_proto_ver(char** req_str, struct http_request_t* req)
     req->http_version = VERSION_UNDEFINED;
 }
 
+static void append_header(struct http_header_t* root, struct http_header_t leaf) {
+    //TODO optimize usages
+    struct http_header_t** cursor = &root;
+    while (*cursor != NULL) {
+        cursor = &((*cursor)->next);
+    }
+    *cursor = &leaf;
+}
+
 static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
     if (req_str == NULL || *req_str == NULL || req == NULL) {
         log(ERROR, "Invalid function arguments");
         return;
     }
 
-    struct http_header_t** header_ptr = &req->headers;
     const char* delim = "\r\n";
     const int delim_len = 2;
     char** cursor = req_str;
@@ -98,8 +106,7 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
         header.text = &(**cursor);
         header.len = header_len + delim_len; //CRLF is a part of a header too
         *cursor += delim_len;
-        *header_ptr = &header;
-        header_ptr = &((*header_ptr)->next);
+        append_header(req->headers, header);
     }
 }
 
