@@ -12,7 +12,6 @@ static void parse_http_req_method(char** req_str, struct http_request_t* req) {
         log(ERROR, "Invalid function arguments");
         return;
     }
-    log(DEBUG, "parse_http_req_method: req_str <%s>", *req_str);
 
     size_t get_len = strlen(STR_GET);
     if (strncmp(*req_str, STR_GET, get_len) == 0) {
@@ -36,7 +35,6 @@ static void parse_http_req_uri(char** req_str, struct http_request_t* req) {
         log(ERROR, "Invalid function arguments");
         return;
     }
-    log(DEBUG, "parse_http_req_uri: req_str <%s>", *req_str);
 
     req->URI = *req_str;
     *req_str = strchr(*req_str, ' ');
@@ -53,7 +51,6 @@ static void parse_http_req_proto_ver(char** req_str, struct http_request_t* req)
         log(ERROR, "Invalid function arguments");
         return;
     }
-    log(DEBUG, "parse_http_req_proto_ver, req_str: <%s>", *req_str);
 
     size_t http_v1_0_len = strlen(STR_HTTPv1_0);
     if (strncmp(*req_str, STR_HTTPv1_0, http_v1_0_len) == 0) {
@@ -113,6 +110,34 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
     //TODO develop?
 }*/
 
+static char* request_method_t_to_string(enum request_method_t method) {
+    switch (method) {
+        case HEAD: {
+            return STR_HEAD;
+        }
+        case GET: {
+            return STR_GET;
+        }
+        default: {
+            return "METHOD_UNDEFINED\0";
+        }
+    }
+}
+
+static char* http_version_t_to_string(enum http_version_t version) {
+    switch (version) {
+        case HTTPv1_0: {
+            return STR_HTTPv1_0;
+        }
+        case HTTPv1_1: {
+            return STR_HTTPv1_1;
+        }
+        default: {
+            return "VERSION_UNDEFINED";
+        }
+    }
+}
+
 enum http_state_t parse_http_request(char* req_str, struct http_request_t* req) {
     if (req_str == NULL || req ==NULL) {
         log(ERROR, "Invalid function arguments");
@@ -129,23 +154,34 @@ enum http_state_t parse_http_request(char* req_str, struct http_request_t* req) 
     }
 
     parse_http_req_method(&cursor, req);
+    log(DEBUG, "HTTP request method parsed: %s", request_method_t_to_string(req->method));
     if (req->method == METHOD_UNDEFINED) {
         return METHOD_NOT_ALLOWED;
     }
 
     parse_http_req_uri(&cursor, req);
+    log(DEBUG, "HTTP request URI parsed: %s", req->URI);
     if (req->URI == NULL) {
         log(DEBUG, "parse_http_request returning BAD_REQUEST, URI==NULL");
         return BAD_REQUEST;
     }
 
     parse_http_req_proto_ver(&cursor, req);
+    log(DEBUG, "HTTP request protocol version parsed: %s", http_version_t_to_string(req->http_version));
     if (req->http_version == VERSION_UNDEFINED) {
         log(DEBUG, "parse_http_request returning BAD_REQUEST, HTTP_VERSION==VERSION_UNDEFINED");
         return BAD_REQUEST;
     }
 
     parse_http_req_headers(&cursor, req);
+    log(DEBUG, "HTTP headers parsed:");
+#ifdef DEBUG_MODE
+    struct http_header_t* header_cursor = req->headers;
+    while (header_cursor != NULL) {
+        log(DEBUG, "%.*s", header_cursor->len, header_cursor->text);
+        header_cursor = header_cursor->next;
+    }
+#endif
     if (req->headers == NULL) {
         log(DEBUG, "parse_http_request returning BAD_REQUEST, unable to parse headers");
         return BAD_REQUEST;
