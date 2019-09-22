@@ -6,6 +6,6 @@ RUN apt-get update && yes | \
     "vim" "git" #TODO remove
 RUN ./main.sh
 EXPOSE 80
-#ENTRYPOINT ["./bin/HighloadServer", "/etc/httpd.conf", "2>&1"]
-ENTRYPOINT ["/bin/bash"]
+ENTRYPOINT ["./bin/HighloadServer", "/etc/httpd.conf", "2>&1"]
+#ENTRYPOINT ["/bin/bash"]
 

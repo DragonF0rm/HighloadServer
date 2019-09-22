@@ -9,7 +9,7 @@ void init_config(int cpu_limit_arg, const char* document_root_arg);
 #define VERSION "1.0"
 #define APP_NAME "HighloadServer"
 #define DEBUG_MODE
-#define DEFAULT_PORT 8080
+#define DEFAULT_PORT 80
 int _get_cpu_limit(void);
 #define CPU_LIMIT _get_cpu_limit()
 
