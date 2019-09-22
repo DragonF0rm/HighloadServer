@@ -95,11 +95,11 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
             return;
         }
         struct http_header_t header = HTTP_HEADER_INITIALIZER;
-        *header_ptr = &header;
-        (*header_ptr)->text = *cursor;
-        (*header_ptr)->len = header_len + delim_len; //CRLF is a part of a header too
+        header.text = &(**cursor);
+        header.len = header_len + delim_len; //CRLF is a part of a header too
         *cursor += delim_len;
-        header_ptr = &(*header_ptr)->next;
+        *header_ptr = &header;
+        header_ptr = &((*header_ptr)->next);
     }
 }
 
