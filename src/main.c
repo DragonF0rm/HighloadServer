@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
             log(FATAL, "Unable to init config with .conf file");
         }
         init_config(cpu_limit, document_root);
-        log(INFO, "httpd.conf parsed: cpu_limit = %d, document_root = %s", CPU_LIMIT, DOCUMENT_ROOT);
+        log(INFO, "httpd.conf parsed: document_root = %s, cpu_limit = %d", DOCUMENT_ROOT, CPU_LIMIT);
     } else {
         log(WARNING, ".conf config file does not passed, using defaults");
     }
