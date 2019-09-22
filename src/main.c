@@ -43,7 +43,9 @@ int parse_config(const char *conf_path, int *cpu_limit, char **document_root) {
             cursor += strlen(key_document_root);
             strcpy(*document_root, cursor);
             char* path_end = strpbrk(*document_root, " #");
-            *path_end = '\0';
+            if (path_end != NULL) {
+                *path_end = '\0';
+            }
             document_root_inited = true;
             continue;
         }
