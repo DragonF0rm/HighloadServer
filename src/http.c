@@ -67,29 +67,20 @@ static void parse_http_req_proto_ver(char** req_str, struct http_request_t* req)
     req->http_version = VERSION_UNDEFINED;
 }
 
-static void append_header(struct http_header_t* root, struct http_header_t leaf) {
-    //TODO optimize usages
-    struct http_header_t** cursor = &root;
-    while (*cursor != NULL) {
-        cursor = &((*cursor)->next);
-    }
-    *cursor = &leaf;
-}
-
 static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
     if (req_str == NULL || *req_str == NULL || req == NULL) {
         log(ERROR, "Invalid function arguments");
         return;
     }
 
+    struct http_header_t** header_ptr = &req->headers;
     const char* delim = "\r\n";
     const int delim_len = 2;
     char** cursor = req_str;
-    char* prev_cursor_val = NULL;
     size_t header_len = 0;
 
     while(1) {
-        prev_cursor_val = *cursor;
+	char* prev_cursor_val = *cursor;
         *cursor = strstr(*cursor, delim);
         header_len = *cursor - prev_cursor_val;
         log(DEBUG, "header_len: %d", header_len);
@@ -103,10 +94,12 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
             return;
         }
         struct http_header_t header = HTTP_HEADER_INITIALIZER;
-        header.text = &(**cursor);
+        header.text = prev_cursor_val;
         header.len = header_len + delim_len; //CRLF is a part of a header too
         *cursor += delim_len;
-        append_header(req->headers, header);
+	*header_ptr = &header;
+	header_ptr = &((*header_ptr)->next);
+    	log(DEBUG, "%.*s", req->headers->len, req->headers->text);
     }
 }
 
@@ -184,11 +177,10 @@ enum http_state_t parse_http_request(char* req_str, struct http_request_t* req) 
     parse_http_req_headers(&cursor, req);
     log(DEBUG, "HTTP headers parsed:");
 #ifdef DEBUG_MODE
-    struct http_header_t* header_cursor = req->headers;
-    while (header_cursor != NULL) {
-        log(DEBUG, "%.*s", header_cursor->len, header_cursor->text);
-        header_cursor = header_cursor->next;
-    }
+    log(DEBUG, "%.*s", req->headers->len, req->headers->text);
+    log(DEBUG, "%.*s", req->headers->next->len, req->headers->next->text);
+    log(DEBUG, "%.*s", req->headers->next->next->len, req->headers->next->next->text);
+    log(DEBUG, "%.*s", req->headers->next->next->next->len, req->headers->next->next->next->text);
 #endif
     if (req->headers == NULL) {
         log(DEBUG, "parse_http_request returning BAD_REQUEST, unable to parse headers");
