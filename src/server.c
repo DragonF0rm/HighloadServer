@@ -99,7 +99,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
        respond_with_err(output, BAD_REQUEST);
        return;
    }
-   if (evbuffer_ptr_set(input, &req_headers_end, 3, EVBUFFER_PTR_ADD) < 0) {
+   if (evbuffer_ptr_set(input, &req_headers_end, 4, EVBUFFER_PTR_ADD) < 0) {
        log(ERROR, "Unable to move req_headers_end evbuffer_ptr");
        respond_with_err(output, INTERNAL_SERVER_ERROR);
        return;
