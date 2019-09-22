@@ -73,7 +73,7 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
         return;
     }
 
-    struct http_header_t* header_ptr = req->headers;
+    struct http_header_t** header_ptr = &req->headers;
     const char* delim = "\r\n";
     const int delim_len = 2;
     char** cursor = req_str;
@@ -82,8 +82,8 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
 
     while(1) {
         struct http_header_t header = HTTP_HEADER_INITIALIZER;
-        *header_ptr = header;
-        header_ptr->text = *cursor;
+        *header_ptr = &header;
+        (*header_ptr)->text = *cursor;
         prev_cursor = cursor;
         *cursor = strstr(*cursor, delim);
         header_len = *prev_cursor - *cursor;
@@ -96,9 +96,9 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
             req->headers = NULL;
             return;
         }
-        header_ptr->len = header_len + delim_len; //CRLF is a part of a header too
+        (*header_ptr)->len = header_len + delim_len; //CRLF is a part of a header too
         *cursor += delim_len;
-        header_ptr = header_ptr->next;
+        header_ptr = &(*header_ptr)->next;
     }
 }
 
