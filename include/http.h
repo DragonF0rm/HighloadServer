@@ -45,9 +45,11 @@ enum http_state_t {
 struct http_header_t {
     char* text;
     size_t len;
-    struct http_header_t* next;
 };
-#define HTTP_HEADER_INITIALIZER {NULL, 0, NULL}
+#define HTTP_HEADER_DEFAULT_BUFFER_SIZE 64
+#define HTTP_HEADER_INITIALIZER {NULL, 0}
+
+int build_date_header(struct http_header_t* header);
 
 struct http_body_t {
     char* text;
@@ -60,8 +62,9 @@ struct http_request_t {
     char* URI;
     enum http_version_t http_version;
     struct http_header_t* headers;
+    size_t headers_count;
 }; //TODO make constructor and destructor?
-#define HTTP_REQUEST_INITIALIZER {METHOD_UNDEFINED, NULL, VERSION_UNDEFINED, NULL}
+#define HTTP_REQUEST_INITIALIZER {METHOD_UNDEFINED, NULL, VERSION_UNDEFINED, NULL, 0}
 
 enum http_state_t parse_http_request(char* req_str, struct http_request_t* req);
 
@@ -69,12 +72,15 @@ struct http_response_t {
     enum http_state_t code;
     enum http_version_t http_version;
     struct http_header_t* headers;
+    size_t headers_count;
     struct file_t file_to_send;
 };
-#define HTTP_RESPONSE_INITIALIZER {STATE_UNDEFINED, VERSION_UNDEFINED, NULL, FILE_INITIALIZER}
-
-struct http_response_t build_default_http_response(enum http_state_t code);
+#define HTTP_RESPONSE_INITIALIZER {STATE_UNDEFINED, VERSION_UNDEFINED, NULL, 0, FILE_INITIALIZER}
 
 enum http_state_t build_http_response(struct http_request_t* req, struct http_response_t* resp);
+
+char* request_method_t_to_string(enum request_method_t method);
+char* http_version_t_to_string(enum http_version_t version);
+char* http_state_t_to_string(enum http_state_t state);
 
 #endif //HIGHLOADSERVER_HTTP_H

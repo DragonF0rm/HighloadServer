@@ -14,11 +14,15 @@
 #include "../include/http.h"
 
 static void respond(struct evbuffer* output, struct http_response_t* resp) {
-    //TODO add checks for evbuffer_add* functions
-    if (output == NULL || resp == NULL) {
-        log(ERROR, "Invalid function arguments");
-        return;
+    log(DEBUG, "HTTP response:");
+    log(DEBUG, "%s %s", http_version_t_to_string(resp->http_version), http_state_t_to_string(resp->code));
+#ifdef DEBUG_MODE
+    for (size_t i = 0; i<resp->headers_count; i++) {
+        log(DEBUG, "%.*s", resp->headers[i].len - 2, resp->headers[i].text);
     }
+    log(DEBUG, "\n");
+#endif
+
     switch (resp->http_version) {
         case HTTPv1_0: {
             evbuffer_add(output, STR_HTTPv1_0, strlen(STR_HTTPv1_0));
@@ -67,10 +71,8 @@ static void respond(struct evbuffer* output, struct http_response_t* resp) {
     }
     evbuffer_add(output, "\r\n", 2);
 
-    struct http_header_t* header_ptr = resp->headers;
-    while(header_ptr != NULL) {
-        evbuffer_add(output, header_ptr->text, header_ptr->len);
-        header_ptr = header_ptr->next;
+    for (size_t i = 0; i < resp->headers_count; i++) {
+        evbuffer_add(output, resp->headers[i].text, resp->headers[i].len);
     }
     evbuffer_add(output, "\r\n", 2);
 
@@ -84,7 +86,70 @@ static void respond_with_err(struct evbuffer* output, enum http_state_t code) {
         log(ERROR, "Invalid function arguments");
         return;
     }
-    struct http_response_t response = build_default_http_response(code);
+
+    struct http_response_t response = HTTP_RESPONSE_INITIALIZER;
+    switch (code) {
+        // NOTE: there are no default response for 200 OK
+        case BAD_REQUEST: {
+            break;
+        }
+        case FORBIDDEN: {
+            break;
+        }
+        case NOT_FOUND: {
+            break;
+        }
+        case METHOD_NOT_ALLOWED: {
+            break;
+        }
+        case INTERNAL_SERVER_ERROR: {
+            break;
+        }
+        default: {
+            code = INTERNAL_SERVER_ERROR;
+            break;
+        }
+    }
+
+    const size_t headers_count = 3;
+    struct http_header_t headers_arr[headers_count];
+    size_t header_idx = 0;
+
+    headers_arr[header_idx] = (struct http_header_t){
+            STR_CONNECTION_CLOSE_HEADER,
+            strlen(STR_CONNECTION_CLOSE_HEADER)
+    };
+    header_idx += 1;
+
+    struct http_header_t date_header = HTTP_HEADER_INITIALIZER;
+    char date_header_buffer[HTTP_HEADER_DEFAULT_BUFFER_SIZE];
+    date_header.text = date_header_buffer;
+
+    int build_result = build_date_header(&date_header);
+    if (build_result < 0) {
+        log(ERROR, "Unable to build Date header");
+        headers_arr[header_idx] = (struct http_header_t){
+                STR_DEFAULT_DATE_HEADER,
+                strlen(STR_DEFAULT_DATE_HEADER)
+        };
+    } else {
+        headers_arr[header_idx] = date_header;
+    }
+    header_idx++;
+
+    headers_arr[header_idx] = (struct http_header_t){
+            STR_SERVER_HEADER,
+            strlen(STR_SERVER_HEADER),
+    };
+    header_idx++;
+
+    response.code = code;
+    response.http_version = HTTPv1_1; //TODO put in the config???
+    response.file_to_send = (struct file_t)FILE_INITIALIZER;
+    response.headers = headers_arr;
+    response.headers_count = headers_count;
+
+    log(DEBUG, "Response successfully built");
     respond(output, &response);
 }
 
@@ -122,34 +187,65 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
    log(DEBUG, "req_str before parsing: <%s>", req_str);
 
    struct http_request_t req = HTTP_REQUEST_INITIALIZER;
+
+   size_t headers_count = 0;
+   char* headers_end = strstr(req_str, "\r\n\r\n");
+   if (headers_end == NULL) {
+       log(ERROR, "Unable to find headers end");
+       respond_with_err(output, BAD_REQUEST);
+       free(req_str);
+       return;
+   }
+   char* cursor = strstr(req_str, "\r\n");
+   while (cursor != headers_end) {
+       cursor += 2;
+       headers_count++;
+       cursor = strstr(cursor, "\r\n");
+   }
+   req.headers = malloc(headers_count * sizeof(struct http_header_t));
+   if (req.headers == NULL) {
+       log(ERROR, "Unable to allocate memory");
+       respond_with_err(output, INTERNAL_SERVER_ERROR);
+       free(req_str);
+       return;
+   }
+   req.headers_count = headers_count;
+   log(DEBUG, "Headers count: %d", headers_count);
+
    enum http_state_t parse_result = parse_http_request(req_str, &req);
-   log(DEBUG, "parse_request_result: <%d>", parse_result);
    switch (parse_result) {
        case OK: {
-           log(INFO, "HTTP Request was parsed! METHOD: <%d>; URI: <%s>; VERSION: <%d>", req.method, req.URI, req.http_version);
+           log(INFO, "HTTP Request was parsed! METHOD: <%s>; URI: <%s>; VERSION: <%s>",
+                   request_method_t_to_string(req.method),
+                   req.URI,
+                   http_version_t_to_string(req.http_version));
            break;
        }
        case BAD_REQUEST: {
            log(INFO, "HTTP Request was not parsed: BAD_REQUEST");
            respond_with_err(output, BAD_REQUEST);
+           free(req.headers);
            free(req_str);
            return;
        }
        case METHOD_NOT_ALLOWED: {
            log(INFO, "HTTP Request was not parsed: METHOD_NOT_ALLOWED");
            respond_with_err(output, METHOD_NOT_ALLOWED);
+           free(req.headers);
            free(req_str);
            return;
        }
        case INTERNAL_SERVER_ERROR: {
            log(ERROR, "HTTP Request was not parsed: INTERNAL_SERVER_ERROR");
            respond_with_err(output, INTERNAL_SERVER_ERROR);
+           free(req.headers);
            free(req_str);
            return;
        }
        default: {
            log(ERROR, "Unexpected http request parsing return code: %d", parse_result);
            respond_with_err(output, INTERNAL_SERVER_ERROR);
+           free(req.headers);
            free(req_str);
            return;
        }
@@ -165,18 +261,21 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
        case FORBIDDEN: {
            log(INFO, "Can't build http response: access to file is forbidden");
            respond_with_err(output, FORBIDDEN);
+           free(req.headers);
            free(req_str);
            return;
        }
        case NOT_FOUND: {
            log(INFO, "Can't build http response: file was not found");
            respond_with_err(output, NOT_FOUND);
+           free(req.headers);
            free(req_str);
            return;
        }
        default: {
            log(ERROR, "Unexpected http response building return code: %d", build_result);
            respond_with_err(output, INTERNAL_SERVER_ERROR);
+           free(req.headers);
            free(req_str);
            return;
        }
@@ -184,7 +283,9 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
 
    respond(output, &resp); //TODO make correct connection header handling
 
+   free(req.headers);
    free(req_str);
+   bufferevent_free(bev);
 }
 
 static void conn_event_cb(struct bufferevent *bev, short events, void *ctx) {

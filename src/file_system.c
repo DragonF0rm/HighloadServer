@@ -114,13 +114,19 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
     absolute_path[0] = '\0';
     char* document_root = DOCUMENT_ROOT;
     strcat(absolute_path, document_root);
-    if (absolute_path[strlen(absolute_path)] - 1 != '/') {
-        strcat(absolute_path, "/\0");
+    //strcat(absolute_path, path);
+
+    log(DEBUG,"Absolute path: %s", absolute_path);
+
+    int fd = open(absolute_path, O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+        log(ERROR, "Unable to open file: %s", strerror(errno));
+        return errno_to_file_state(errno);
     }
-    strcat(absolute_path, path);
 
     struct stat file_stat;
-    if (!stat(absolute_path, &file_stat)) {
+
+    if (!fstat(fd, &file_stat)) {
         log(ERROR, "Unable to get file stat: %s", strerror(errno));
         return errno_to_file_state(errno);
     }
@@ -155,11 +161,6 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
     }
 
     if (should_get_fd) {
-        int fd = open(absolute_path, O_RDONLY);
-        if (fd < 0) {
-            log(ERROR, "Unable to open file: %s", strerror(errno));
-            return errno_to_file_state(errno);
-        }
         file->fd = fd;
     }
 

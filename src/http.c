@@ -73,11 +73,11 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
         return;
     }
 
-    struct http_header_t** header_ptr = &req->headers;
     const char* delim = "\r\n";
     const int delim_len = 2;
     char** cursor = req_str;
     size_t header_len = 0;
+    size_t headers_count = 0;
 
     while(1) {
 	char* prev_cursor_val = *cursor;
@@ -86,20 +86,23 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
         log(DEBUG, "header_len: %d", header_len);
         if(header_len == 0) {
             *cursor += delim_len;
+            req->headers_count = headers_count;
             break;
         }
         if (*cursor == NULL) {
             log(ERROR, "Can't parse headers: empty line does not reached");
-            req->headers = NULL;
+            req->headers_count = 0;
             return;
         }
-        struct http_header_t header = HTTP_HEADER_INITIALIZER;
-        header.text = prev_cursor_val;
-        header.len = header_len + delim_len; //CRLF is a part of a header too
+        if (headers_count > req->headers_count) {
+            log(ERROR, "Not enough memory allocated for headers");
+            req->headers_count = 0;
+            return;
+        }
+        req->headers[headers_count].text = prev_cursor_val;
+        req->headers[headers_count].len = header_len + delim_len; //CRLF is a part of a header too
         *cursor += delim_len;
-	*header_ptr = &header;
-	header_ptr = &((*header_ptr)->next);
-    	log(DEBUG, "%.*s", req->headers->len, req->headers->text);
+        headers_count++;
     }
 }
 
@@ -111,7 +114,7 @@ static void parse_http_req_headers(char** req_str, struct http_request_t* req) {
     //TODO develop?
 }*/
 
-static char* request_method_t_to_string(enum request_method_t method) {
+char* request_method_t_to_string(enum request_method_t method) {
     switch (method) {
         case HEAD: {
             return STR_HEAD;
@@ -125,7 +128,7 @@ static char* request_method_t_to_string(enum request_method_t method) {
     }
 }
 
-static char* http_version_t_to_string(enum http_version_t version) {
+char* http_version_t_to_string(enum http_version_t version) {
     switch (version) {
         case HTTPv1_0: {
             return STR_HTTPv1_0;
@@ -135,6 +138,32 @@ static char* http_version_t_to_string(enum http_version_t version) {
         }
         default: {
             return "VERSION_UNDEFINED";
+        }
+    }
+}
+
+char* http_state_t_to_string(enum http_state_t state) {
+    switch (state) {
+        case OK: {
+            return STR_200_OK;
+        }
+        case BAD_REQUEST: {
+            return STR_400_BAD_REQUEST;
+        }
+        case FORBIDDEN: {
+            return STR_403_FORBIDDEN;
+        }
+        case NOT_FOUND: {
+            return STR_404_NOT_FOUND;
+        }
+        case METHOD_NOT_ALLOWED: {
+            return STR_405_METHOD_NOT_ALLOWED;
+        }
+        case INTERNAL_SERVER_ERROR: {
+            return STR_500_INTERNAL_SERVER_ERROR;
+        }
+        default: {
+            return "STATE_UNDEFINED\0";
         }
     }
 }
@@ -177,27 +206,23 @@ enum http_state_t parse_http_request(char* req_str, struct http_request_t* req) 
     parse_http_req_headers(&cursor, req);
     log(DEBUG, "HTTP headers parsed:");
 #ifdef DEBUG_MODE
-    log(DEBUG, "%.*s", req->headers->len, req->headers->text);
-    log(DEBUG, "%.*s", req->headers->next->len, req->headers->next->text);
-    log(DEBUG, "%.*s", req->headers->next->next->len, req->headers->next->next->text);
-    log(DEBUG, "%.*s", req->headers->next->next->next->len, req->headers->next->next->next->text);
+    for (size_t i = 0; i < req->headers_count; i++) {
+        log(DEBUG, "%.*s", req->headers[i].len - 2, req->headers[i].text);
+    }
 #endif
-    if (req->headers == NULL) {
-        log(DEBUG, "parse_http_request returning BAD_REQUEST, unable to parse headers");
-        return BAD_REQUEST;
+    if (req->headers_count == 0) {
+        log(DEBUG, "parse_http_request returning INTERNAL_SERVER_ERROR, unable to parse headers");
+        return INTERNAL_SERVER_ERROR;
     }
 
     return OK;
 }
 
-static int build_date_header(struct http_header_t* header) {
+int build_date_header(struct http_header_t* header) {
     if (header == NULL) {
         log(ERROR, "Invalid function arguments");
         return -1;
     }
-
-    const size_t buffer_len = 64; //TODO put in config??
-    char buffer[buffer_len];
 
     time_t raw_time; //timestamp
     if (time(&raw_time) < 0) {
@@ -211,136 +236,59 @@ static int build_date_header(struct http_header_t* header) {
         return -1;
     }
 
-    size_t header_len = strftime(buffer, buffer_len, "Date: %a, %d %b %Y %X %Z\r\n", time_info);
+    size_t header_len = strftime(header->text, HTTP_HEADER_DEFAULT_BUFFER_SIZE, "Date: %a, %d %b %Y %X %Z\r\n", time_info);
     if (header_len == 0) {
         log(ERROR, "Can not build Date header: buffer is too small");
         return -1;
     }
 
-    header->text = buffer;
-    header->len = strlen(buffer);
-    header->next = NULL;
+    header->len = strlen(header->text);
     return 0;
 }
 
 static int build_content_length_header(struct http_header_t* header, int64_t content_len) {
-    if (header == NULL) {
+    if (header == NULL || header->text == NULL) {
         log(ERROR, "Invalid function arguments");
         return -1;
     }
-    const size_t buffer_len = 64; //TODO put in config??
-    char buffer[buffer_len];
-    strcpy(buffer, STR_CONTENT_LENGTH_HEADER);
-    sprintf(buffer + strlen(buffer), "%lu\r\n", content_len);
-    header->text = buffer;
-    header->len = strlen(buffer);
-    header->next = NULL;
+    strcpy(header->text, STR_CONTENT_LENGTH_HEADER);
+    sprintf(header->text + strlen(header->text), "%lu\r\n", content_len);
+    header->len = strlen(header->text);
     return 0;
 }
 
 static int build_content_type_header(struct http_header_t* header, enum mime_t mime_type) {
-    if (header == NULL) {
+    if (header == NULL || header->text == NULL) {
         log(ERROR, "Invalid function arguments");
         return -1;
     }
-    const size_t buffer_len = 64; //TODO put in config??
-    char buffer[buffer_len];
-    strcpy(buffer, STR_CONTENT_TYPE_HEADER);
-    strcat(buffer, mime_type_to_str(mime_type));
-    strcat(buffer, "\r\n\0");
-    header->text = buffer;
-    header->len = strlen(buffer);
-    header->next = NULL;
+    strcpy(header->text, STR_CONTENT_TYPE_HEADER);
+    strcat(header->text, mime_type_to_str(mime_type));
+    strcat(header->text, "\r\n\0");
+    header->len = strlen(header->text);
     return 0;
 }
 
-struct http_response_t build_default_http_response(enum http_state_t code) {
-    switch (code) {
-        // NOTE: there are no default response for 200 OK
-        case BAD_REQUEST: {
-            break;
-        }
-        case FORBIDDEN: {
-            break;
-        }
-        case NOT_FOUND: {
-            break;
-        }
-        case METHOD_NOT_ALLOWED: {
-            break;
-        }
-        case INTERNAL_SERVER_ERROR: {
-            break;
-        }
-        default: {
-            code = INTERNAL_SERVER_ERROR;
-            break;
-        }
-    }
-
-    struct http_header_t header_list = HTTP_HEADER_INITIALIZER;
-    struct http_header_t* header_ptr = &header_list;
-
-    *header_ptr = (struct http_header_t){
-            STR_CONNECTION_CLOSE_HEADER,
-            strlen(STR_CONNECTION_CLOSE_HEADER),
-            NULL
-    };
-    header_ptr = header_ptr->next;
-
-    struct http_header_t date_header = HTTP_HEADER_INITIALIZER;
-    int build_result = build_date_header(&date_header);
-    if (build_result < 0) {
-        log(ERROR, "Unable to build Date header");
-        *header_ptr = (struct http_header_t){
-                STR_DEFAULT_DATE_HEADER,
-                strlen(STR_DEFAULT_DATE_HEADER),
-                NULL
-        };
-    } else {
-        *header_ptr = date_header;
-    }
-    header_ptr = header_ptr->next;
-
-    *header_ptr = (struct http_header_t){
-            STR_SERVER_HEADER,
-            strlen(STR_SERVER_HEADER),
-            NULL
-    };
-    header_ptr = header_ptr->next;
-
-    struct http_response_t resp = HTTP_RESPONSE_INITIALIZER;
-    resp.code = code;
-    resp.http_version = HTTPv1_1; //TODO put in the config???
-    resp.headers = &header_list;
-
-    return resp;
-}
-
 enum http_state_t build_http_response(struct http_request_t* req, struct http_response_t* resp) {
-    struct http_header_t header_list = HTTP_HEADER_INITIALIZER;
-    struct http_header_t* header_ptr = &header_list;
+    const size_t headers_count = 5;
+    struct http_header_t header_arr[headers_count];
+    size_t header_idx = 0;
 
-    *header_ptr = (struct http_header_t){
+    header_arr[header_idx] = (struct http_header_t){
             STR_CONNECTION_CLOSE_HEADER,
             strlen(STR_CONNECTION_CLOSE_HEADER),
-            NULL
     };
-    header_ptr = header_ptr->next;
+    header_idx++;
 
-    struct http_header_t date_header = HTTP_HEADER_INITIALIZER;
-    int build_result = build_date_header(&date_header);
+    int build_result = build_date_header(&header_arr[header_idx]);
     if (build_result < 0) {
         log(ERROR, "Unable to build Date header");
-        *header_ptr = (struct http_header_t){
+        header_arr[header_idx] = (struct http_header_t){
                 STR_DEFAULT_DATE_HEADER,
-                strlen(STR_DEFAULT_DATE_HEADER),
-                NULL
+                strlen(STR_DEFAULT_DATE_HEADER)
         };
-    } else {
-        *header_ptr = date_header;
     }
-    header_ptr = header_ptr->next;
+    header_idx++;
 
     bool should_get_fd = req->method==GET;
     struct file_t file_to_send = FILE_INITIALIZER;
@@ -364,34 +312,30 @@ enum http_state_t build_http_response(struct http_request_t* req, struct http_re
         }
     }
 
-    struct http_header_t content_length_header = HTTP_HEADER_INITIALIZER;
-    build_result = build_content_length_header(&content_length_header, file_to_send.len);
+    build_result = build_content_length_header(&header_arr[header_idx], file_to_send.len);
     if (build_result < 0) {
         log(WARNING, "Unable to build Content-Length header");
     } else {
-        *header_ptr = content_length_header;
-        header_ptr = header_ptr -> next;
+        header_idx++;
     }
 
-    struct http_header_t content_type_header = HTTP_HEADER_INITIALIZER;
-    build_result = build_content_type_header(&content_type_header, file_to_send.mime_type);
+    build_result = build_content_type_header(&header_arr[header_idx], file_to_send.mime_type);
     if (build_result) {
         log(WARNING, "Unable to build Content-Type header");
     } else {
-        *header_ptr = content_type_header;
-        header_ptr = header_ptr -> next;
+        header_idx++;
     }
 
-    *header_ptr = (struct http_header_t){
+    header_arr[header_idx] = (struct http_header_t){
             STR_SERVER_HEADER,
-            strlen(STR_SERVER_HEADER),
-            NULL
+            strlen(STR_SERVER_HEADER)
     };
-    header_ptr = header_ptr->next;
+    header_idx++;
 
     resp->code = OK;
     resp->http_version = req->http_version;
-    resp->headers = &header_list;
+    resp->headers = header_arr;
+    resp->headers_count = headers_count;
     resp->file_to_send = file_to_send;
     return OK;
 }
