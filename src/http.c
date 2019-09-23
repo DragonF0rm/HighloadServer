@@ -294,19 +294,22 @@ enum http_state_t build_http_response(struct http_request_t* req, struct http_re
     header_idx++;
 
     bool should_get_fd = req->method==GET;
-    struct file_t file_to_send = FILE_INITIALIZER;
-    enum file_state_t inspect_result = inspect_file(req->URI, &file_to_send, should_get_fd);
+    enum file_state_t inspect_result = inspect_file(req->URI, &resp->file_to_send, should_get_fd);
     switch (inspect_result) {
         case FILE_STATE_OK: {
+            log(DEBUG, "File inspection successfully finished");
             break;
         }
         case FILE_STATE_NOT_FOUND: {
+            log(DEBUG, "File inspection finished: file not found");
             return NOT_FOUND;
         }
         case FILE_STATE_FORBIDDEN: {
+            log(DEBUG, "File inspection finished: access forbidden");
             return FORBIDDEN;
         }
         case FILE_STATE_INTERNAL_ERROR: {
+            log(ERROR, "File inspection finished цшер штеуктфд уккщк");
             return INTERNAL_SERVER_ERROR;
         }
         default: {
@@ -314,20 +317,24 @@ enum http_state_t build_http_response(struct http_request_t* req, struct http_re
             return INTERNAL_SERVER_ERROR;
         }
     }
+    log(DEBUG, "File_to_send: fd: %d, len: %d, mime-type: %s",
+            resp->file_to_send.fd, resp->file_to_send.mime_type, mime_type_to_str(resp->file_to_send.mime_type));
 
-    build_result = build_content_length_header(&resp->headers[header_idx], file_to_send.len);
+    build_result = build_content_length_header(&resp->headers[header_idx], resp->file_to_send.len);
     if (build_result < 0) {
         log(WARNING, "Unable to build Content-Length header");
     } else {
         header_idx++;
     }
+    log(DEBUG, "Content-Length header built");
 
-    build_result = build_content_type_header(&resp->headers[header_idx], file_to_send.mime_type);
+    build_result = build_content_type_header(&resp->headers[header_idx], resp->file_to_send.mime_type);
     if (build_result) {
         log(WARNING, "Unable to build Content-Type header");
     } else {
         header_idx++;
     }
+    log(DEBUG, "Content-Type header built");
 
     resp->headers[header_idx] = (struct http_header_t){
             STR_SERVER_HEADER,
@@ -338,6 +345,5 @@ enum http_state_t build_http_response(struct http_request_t* req, struct http_re
     resp->code = OK;
     resp->http_version = req->http_version;
     resp->headers_count = headers_count;
-    resp->file_to_send = file_to_send;
     return OK;
 }
