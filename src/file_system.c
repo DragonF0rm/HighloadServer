@@ -109,50 +109,53 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
         log(ERROR, "Invalid function arguments");
         return -1;
     }
+    //TODO close fd correctly
 
-    char absolute_path[4096];
-    absolute_path[0] = '\0';
-    char* document_root = DOCUMENT_ROOT;
-    strcat(absolute_path, document_root);
-    //strcat(absolute_path, path);
-
+    char absolute_path[4096] = "\0";
+    strcpy(absolute_path, DOCUMENT_ROOT);
+    strcat(absolute_path, path);
+    if (absolute_path[strlen(absolute_path) - 1] == '/') {
+        absolute_path[strlen(absolute_path) - 1] = '\0';
+    }
     log(DEBUG,"Absolute path: %s", absolute_path);
 
-    int fd = open(absolute_path, O_RDONLY | O_NONBLOCK);
-    if (fd < 0) {
-        log(ERROR, "Unable to open file: %s", strerror(errno));
-        return errno_to_file_state(errno);
-    }
-
-    struct stat file_stat;
-
-    if (!fstat(fd, &file_stat)) {
-        log(ERROR, "Unable to get file stat: %s", strerror(errno));
-        return errno_to_file_state(errno);
-    }
-
-    if (S_ISDIR(file_stat.st_mode)) {
-        if (absolute_path[strlen(absolute_path)] - 1 != '/') {
-            strcat(absolute_path, "/\0");
+    int fd = open(absolute_path, O_RDONLY | O_NONBLOCK | O_DIRECTORY);
+    if (errno == ENOTDIR) {
+        log(DEBUG, "Absolute path is a regular file");
+        fd = open(absolute_path, O_RDONLY | O_NONBLOCK);
+        if (fd < 0) {
+            log(ERROR, "Unable to open file: %s", strerror(errno));
+            return errno_to_file_state(errno);
         }
-        strcat(absolute_path, "index.html");
-        if (!stat(absolute_path, &file_stat)) {
-            log(ERROR, "Unable to get file stat: %s", strerror(errno));
+    } else if (fd < 0) {
+        log(ERROR, "Unable to open file by absolute path: %s", strerror(errno));
+        return errno_to_file_state(errno);
+    } else {
+        log(DEBUG, "Absolute path points to directory");
+        if (close(fd) < 0) {
+            log(ERROR, "Unable to close directory fd: %s", strerror(errno));
+            return errno_to_file_state(errno);
+        }
+
+        strcat(absolute_path, INDEX_FILE_NAME);
+        log(DEBUG, "Absolute path: %s", absolute_path);
+
+        fd = open(absolute_path, O_RDONLY | O_NONBLOCK);
+        if (fd < 0) {
+            log(ERROR, "Unable to open file: %s", strerror(errno));
             return errno_to_file_state(errno);
         }
     }
 
-    if (!S_ISREG(file_stat.st_mode)) {
-        log(ERROR, "Requested file is not a regular file, path: %s", absolute_path);
-        return FILE_STATE_NOT_FOUND;
+    ssize_t file_len = lseek(fd, 0, SEEK_END);
+    if (file_len < 0) {
+        log(ERROR, "Unable to get file size via lseek: %s", strerror(errno));
+        return errno_to_file_state(errno);
     }
-
-    if (!(file_stat.st_mode & R_OK)) {
-        return FILE_STATE_FORBIDDEN;
-    }
+    log(DEBUG, "File length: %d", file_len);
 
     file->path = absolute_path;
-    file->len = file_stat.st_size;
+    file->len = (size_t)file_len;
     char* file_extension = strrchr(absolute_path, '.');
     if (file_extension == NULL) {
         file->mime_type = MIME_TYPE_APPLICATION_OCTET_STREAM;

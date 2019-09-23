@@ -31,6 +31,8 @@ enum file_state_t {
     FILE_STATE_OK
 };
 
+#define INDEX_FILE_NAME "/index.html\0"
+
 enum file_state_t inspect_file(char* path, struct file_t* file, _Bool should_get_fd);
 
 #endif //HIGHLOADSERVER_FILE_SYSTEM_H
