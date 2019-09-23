@@ -271,19 +271,22 @@ static int build_content_type_header(struct http_header_t* header, enum mime_t m
 
 enum http_state_t build_http_response(struct http_request_t* req, struct http_response_t* resp) {
     const size_t headers_count = 5;
-    struct http_header_t header_arr[headers_count];
+    if (req == NULL || resp == NULL || resp->headers == NULL || resp->headers_count < headers_count) {
+        log(ERROR, "Invalid function arguments");
+        return INTERNAL_SERVER_ERROR;
+    }
     size_t header_idx = 0;
 
-    header_arr[header_idx] = (struct http_header_t){
+    resp->headers[header_idx] = (struct http_header_t){
             STR_CONNECTION_CLOSE_HEADER,
             strlen(STR_CONNECTION_CLOSE_HEADER),
     };
     header_idx++;
 
-    int build_result = build_date_header(&header_arr[header_idx]);
+    int build_result = build_date_header(&resp->headers[header_idx]);
     if (build_result < 0) {
         log(ERROR, "Unable to build Date header");
-        header_arr[header_idx] = (struct http_header_t){
+        resp->headers[header_idx] = (struct http_header_t){
                 STR_DEFAULT_DATE_HEADER,
                 strlen(STR_DEFAULT_DATE_HEADER)
         };
@@ -312,21 +315,21 @@ enum http_state_t build_http_response(struct http_request_t* req, struct http_re
         }
     }
 
-    build_result = build_content_length_header(&header_arr[header_idx], file_to_send.len);
+    build_result = build_content_length_header(&resp->headers[header_idx], file_to_send.len);
     if (build_result < 0) {
         log(WARNING, "Unable to build Content-Length header");
     } else {
         header_idx++;
     }
 
-    build_result = build_content_type_header(&header_arr[header_idx], file_to_send.mime_type);
+    build_result = build_content_type_header(&resp->headers[header_idx], file_to_send.mime_type);
     if (build_result) {
         log(WARNING, "Unable to build Content-Type header");
     } else {
         header_idx++;
     }
 
-    header_arr[header_idx] = (struct http_header_t){
+    resp->headers[header_idx] = (struct http_header_t){
             STR_SERVER_HEADER,
             strlen(STR_SERVER_HEADER)
     };
@@ -334,7 +337,6 @@ enum http_state_t build_http_response(struct http_request_t* req, struct http_re
 
     resp->code = OK;
     resp->http_version = req->http_version;
-    resp->headers = header_arr;
     resp->headers_count = headers_count;
     resp->file_to_send = file_to_send;
     return OK;
