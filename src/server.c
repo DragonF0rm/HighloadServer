@@ -162,11 +162,13 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
    if (req_headers_end.pos < 0) {
        log(WARNING, "Unable to find headers end, input buffer len %d bytes",evbuffer_get_length(input));
        respond_with_err(output, BAD_REQUEST);
+       bufferevent_free(bev);
        return;
    }
    if (evbuffer_ptr_set(input, &req_headers_end, 4, EVBUFFER_PTR_ADD) < 0) {
        log(ERROR, "Unable to move req_headers_end evbuffer_ptr");
        respond_with_err(output, INTERNAL_SERVER_ERROR);
+       bufferevent_free(bev);
        return;
    }
    // req_headers_end is now points to the last byte of CRLFCRLF
@@ -175,6 +177,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
    if (req_str == NULL) {
        log(ERROR, "Unable to allocate memory");
        respond_with_err(output, INTERNAL_SERVER_ERROR);
+       bufferevent_free(bev);
        return;
    }
    req_str[req_headers_end.pos] = '\0';
@@ -182,6 +185,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
        log(ERROR, "Unable to copy data from input evbuffer");
        respond_with_err(output, INTERNAL_SERVER_ERROR);
        free(req_str);
+       bufferevent_free(bev);
        return;
    }
    log(DEBUG, "req_str before parsing: <%s>", req_str);
@@ -194,6 +198,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
        log(ERROR, "Unable to find headers end");
        respond_with_err(output, BAD_REQUEST);
        free(req_str);
+       bufferevent_free(bev);
        return;
    }
    char* cursor = strstr(req_str, "\r\n");
@@ -207,6 +212,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
        log(ERROR, "Unable to allocate memory");
        respond_with_err(output, INTERNAL_SERVER_ERROR);
        free(req_str);
+       bufferevent_free(bev);
        return;
    }
    req.headers_count = headers_count;
@@ -226,6 +232,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
            respond_with_err(output, BAD_REQUEST);
            free(req.headers);
            free(req_str);
+           bufferevent_free(bev);
            return;
        }
        case METHOD_NOT_ALLOWED: {
@@ -233,6 +240,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
            respond_with_err(output, METHOD_NOT_ALLOWED);
            free(req.headers);
            free(req_str);
+           bufferevent_free(bev);
            return;
        }
        case INTERNAL_SERVER_ERROR: {
@@ -240,6 +248,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
            respond_with_err(output, INTERNAL_SERVER_ERROR);
            free(req.headers);
            free(req_str);
+           bufferevent_free(bev);
            return;
        }
        default: {
@@ -247,6 +256,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
            respond_with_err(output, INTERNAL_SERVER_ERROR);
            free(req.headers);
            free(req_str);
+           bufferevent_free(bev);
            return;
        }
    }
@@ -271,6 +281,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
            respond_with_err(output, FORBIDDEN);
            free(req.headers);
            free(req_str);
+           bufferevent_free(bev);
            return;
        }
        case NOT_FOUND: {
@@ -278,6 +289,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
            respond_with_err(output, NOT_FOUND);
            free(req.headers);
            free(req_str);
+           bufferevent_free(bev);
            return;
        }
        default: {
@@ -285,6 +297,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
            respond_with_err(output, INTERNAL_SERVER_ERROR);
            free(req.headers);
            free(req_str);
+           bufferevent_free(bev);
            return;
        }
    }
@@ -293,6 +306,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
 
    free(req.headers);
    free(req_str);
+   bufferevent_free(bev);
 }
 
 static void conn_event_cb(struct bufferevent *bev, short events, void *ctx) {
