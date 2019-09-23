@@ -254,7 +254,7 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
    struct http_response_t resp = HTTP_RESPONSE_INITIALIZER;
    const int resp_headers_count = 5;
    struct http_header_t headers[resp_headers_count];
-   char resp_headers_buffer[resp_headers_count][HTTP_HEADER_DEFAULT_BUFFER_SIZE]
+   char resp_headers_buffer[resp_headers_count][HTTP_HEADER_DEFAULT_BUFFER_SIZE];
    for (size_t i = 0; i < resp_headers_count; i++) {
        headers[i].text = resp_headers_buffer[i];
    }
