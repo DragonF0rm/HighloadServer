@@ -278,8 +278,8 @@ enum http_state_t build_http_response(struct http_request_t* req, struct http_re
     size_t header_idx = 0;
 
     resp->headers[header_idx] = (struct http_header_t){
-            STR_CONNECTION_CLOSE_HEADER,
-            strlen(STR_CONNECTION_CLOSE_HEADER),
+            STR_CONNECTION_HEADER,
+            strlen(STR_CONNECTION_HEADER),
     };
     header_idx++;
 
