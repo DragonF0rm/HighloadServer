@@ -289,7 +289,6 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
 
    free(req.headers);
    free(req_str);
-   bufferevent_free(bev);
 }
 
 static void conn_event_cb(struct bufferevent *bev, short events, void *ctx) {
