@@ -252,6 +252,10 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
    }
 
    struct http_response_t resp = HTTP_RESPONSE_INITIALIZER;
+   const int resp_headers_count = 5;
+   struct http_header_t headers[resp_headers_count];
+   resp.headers_count = resp_headers_count;
+   resp.headers = headers;
    enum http_state_t build_result = build_http_response(&req, &resp);
    switch (build_result) {
        case OK: {
