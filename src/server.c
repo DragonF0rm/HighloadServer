@@ -14,10 +14,10 @@
 #include "../include/log.h"
 #include "../include/http.h"
 
-static void bev_free_on_write_end(struct evbuffer* buffer, const struct evbuffer_cb_info* info, void* arg) {
+static void socket_close_cb(struct evbuffer *buffer, const struct evbuffer_cb_info *info, void *arg) {
     if (evbuffer_get_length(buffer) == 0) {
         log(DEBUG, "Freeing the bufferevent");
-        bufferevent_free((struct bufferevent*)arg);
+        close(bufferevent_getfd((struct bufferevent*)arg));
     }
 }
 
@@ -82,6 +82,7 @@ static void respond(struct bufferevent* bev, struct evbuffer* output, struct htt
     char connection_close = 1;
     for (size_t i = 0; i < resp->headers_count; i++) {
         if (strstr(resp->headers[i].text, STR_CONNECTION_KEEP_ALIVE_HEADER) != NULL) {
+            //TODO fixme
             connection_close = 0;
         }
         evbuffer_add(output, resp->headers[i].text, resp->headers[i].len);
@@ -93,7 +94,7 @@ static void respond(struct bufferevent* bev, struct evbuffer* output, struct htt
     }
 
     if(connection_close) {
-        evbuffer_add_cb(output, bev_free_on_write_end, output);
+        evbuffer_add_cb(output, socket_close_cb, output);
     }
 }
 
