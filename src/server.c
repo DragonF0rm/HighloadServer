@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <zconf.h>
 
 #include "../include/server.h"
 #include "../include/log.h"
@@ -291,6 +292,9 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
            respond_with_err(output, INTERNAL_SERVER_ERROR);
            free(req.headers);
            free(req_str);
+           if (resp.file_to_send.fd > 0) {
+               close(resp.file_to_send.fd);
+           }
            return;
        }
    }
@@ -299,6 +303,9 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
 
    free(req.headers);
    free(req_str);
+   if (resp.file_to_send.fd > 0) {
+       close(resp.file_to_send.fd);
+   }
 }
 
 static void conn_event_cb(struct bufferevent *bev, short events, void *ctx) {

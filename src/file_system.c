@@ -109,7 +109,6 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
         log(ERROR, "Invalid function arguments");
         return -1;
     }
-    //TODO close fd correctly
 
     char absolute_path[4096] = "\0";
     strcpy(absolute_path, DOCUMENT_ROOT);
