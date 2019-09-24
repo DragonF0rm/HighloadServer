@@ -4,6 +4,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "../include/file_system.h"
 #include "../include/log.h"
 #include "../include/config.h"
@@ -118,6 +119,17 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
     }
     log(DEBUG,"Absolute path: %s", absolute_path);
 
+    char real_path[4096] = "\0";
+    realpath(absolute_path, real_path);
+    if (errno != 0) {
+        log(DEBUG, "Unable to get real path% %s", strerror(errno));
+        return errno_to_file_state(errno);
+    }
+
+    if(strstr(real_path, DOCUMENT_ROOT) != real_path) {
+        return FILE_STATE_FORBIDDEN;
+    }
+
     int fd = open(absolute_path, O_RDONLY | O_NONBLOCK | O_DIRECTORY);
     if (errno == ENOTDIR) {
         log(DEBUG, "Absolute path is a regular file");
@@ -144,6 +156,8 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
             log(ERROR, "Unable to open file: %s", strerror(errno));
             return errno_to_file_state(errno);
         }
+
+
     }
 
     ssize_t file_len = lseek(fd, 0, SEEK_END);
@@ -160,14 +174,7 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
     if (file_extension == NULL) {
         file->mime_type = MIME_TYPE_APPLICATION_OCTET_STREAM;
     } else {
-        char* query_start = strrchr(file_extension, '?');
-        if (query_start != NULL) {
-            *query_start = '\0';
-        }
         file->mime_type = parse_mime_type(file_extension);
-        if (query_start != NULL) {
-            *query_start = '?';
-        }
     }
 
     if (should_get_fd) {

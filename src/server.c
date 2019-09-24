@@ -378,7 +378,9 @@ int listen_and_serve(u_int16_t port) {
        setuid(uid);
        if (errno != 0) {
            log(ERROR, "Error while dropping privilage: %s", strerror(errno));
+           return -1;
        }
+       log(INFO, "Privilage dropped to uid: %d", uid);
    }
 
    event_base_dispatch(base);

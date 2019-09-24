@@ -62,6 +62,11 @@ static void parse_http_req_uri(char** req_str, struct http_request_t* req) {
     **req_str = '\0';
     *req_str += 1;
     url_decode(req->URI);
+
+    char* query_start = strrchr(req->URI, '?');
+    if (query_start != NULL) {
+        *query_start = '\0';
+    }
 }
 
 static void parse_http_req_proto_ver(char** req_str, struct http_request_t* req) {
