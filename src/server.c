@@ -383,6 +383,19 @@ int listen_and_serve(u_int16_t port) {
        log(INFO, "Privilage dropped to uid: %d", uid);
    }
 
-   event_base_dispatch(base);
+   pid_t pid = 0;
+   for (int i = 0; i < CPU_LIMIT; i++) {
+       switch(pid=fork()) {
+           case -1: {
+               log(ERROR, "Fork caused error: %s", strerror(errno));
+           }
+           case 0 : {
+               event_base_dispatch(base);
+           }
+           default : {
+               log(INFO, "Forked successfully, PID=%d", pid);
+           }
+       }
+   }
    return 0;
 }
