@@ -331,7 +331,7 @@ static void accept_error_cb(struct evconnlistener *listener, void *ctx) {
    log(ERROR, "Got an error %d (%s) on the listener while accepting", err, evutil_socket_error_to_string(err));
 }
 
-int listen_and_serve(u_int16_t port, int uid) {
+int listen_and_serve(u_int16_t port) {
    //TODO use <int event_config_set_num_cpus_hint(struct event_config *cfg, int cpus)> ???
    //TODO make events with priority?
    //TODO set read low watermark?
@@ -365,8 +365,16 @@ int listen_and_serve(u_int16_t port, int uid) {
    }
    evconnlistener_set_error_cb(listener, accept_error_cb);
 
-   if(getuid() == 0 && uid > 0) {
+   if(getuid() == 0) {
        log(DEBUG, "Dropping privilage");
+       FILE* pp = popen("id parallels | sed 's/uid=//; s/(.*$//g'", "r");
+       if (pp == NULL) {
+           log(ERROR, "Unable to open pipe");
+           return -1;
+       }
+       int uid = 0;
+       fscanf(pp, "%d", &uid);
+       fclose(pp);
        setuid(uid);
        if (errno != 0) {
            log(ERROR, "Error while dropping privilage: %s", strerror(errno));

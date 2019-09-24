@@ -66,17 +66,11 @@ int main(int argc, char **argv) {
         log(WARNING, ".conf config file does not passed, using defaults");
     }
 
-    int uid = 0;
-    if (argc > 2) {
-        uid = atoi(argv[2]);
-        log(INFO, "Privilage will be dropped to uid = %d", uid);
-    }
-
     int port = DEFAULT_PORT;
     if (port<=0 || port>65535) {
         puts("Invalid port");
         return 1;
     }
     log(IMPORTANT, "%s v%s is listening on port %d", APP_NAME, VERSION, port);
-    return listen_and_serve((u_int16_t)port, uid);
+    return listen_and_serve((u_int16_t)port);
 }
