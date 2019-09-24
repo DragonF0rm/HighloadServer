@@ -122,7 +122,7 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
     char real_path[4096] = "\0";
     realpath(absolute_path, real_path);
     if (errno != 0) {
-        log(DEBUG, "Unable to get real path% %s", strerror(errno));
+        log(DEBUG, "Unable to get real path %s", strerror(errno));
         return errno_to_file_state(errno);
     }
 
