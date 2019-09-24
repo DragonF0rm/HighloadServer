@@ -155,11 +155,19 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
 
     file->path = absolute_path;
     file->len = (size_t)file_len;
+
     char* file_extension = strrchr(absolute_path, '.');
     if (file_extension == NULL) {
         file->mime_type = MIME_TYPE_APPLICATION_OCTET_STREAM;
     } else {
+        char* query_start = strrchr(file_extension, '?');
+        if (query_start != NULL) {
+            *query_start = '\0';
+        }
         file->mime_type = parse_mime_type(file_extension);
+        if (query_start != NULL) {
+            *query_start = '?';
+        }
     }
 
     if (should_get_fd) {
