@@ -80,7 +80,6 @@ static void respond(struct evbuffer* output, struct http_response_t* resp) {
     if (resp->file_to_send.fd > 0 && resp->file_to_send.len > 0) {
         evbuffer_add_file(output, resp->file_to_send.fd, 0, resp->file_to_send.len);
     }
-    evbuffer_free(output);
 }
 
 static void respond_with_err(struct evbuffer* output, enum http_state_t code) {
