@@ -303,11 +303,17 @@ enum http_state_t build_http_response(struct http_request_t* req, struct http_re
         return INTERNAL_SERVER_ERROR;
     }
     size_t header_idx = 0;
-
-    resp->headers[header_idx] = (struct http_header_t){
-            STR_CONNECTION_KEEP_ALIVE_HEADER,
-            strlen(STR_CONNECTION_KEEP_ALIVE_HEADER),
-    };
+    if (req->http_version == HTTPv1_1) {
+        resp->headers[header_idx] = (struct http_header_t) {
+                STR_CONNECTION_KEEP_ALIVE_HEADER,
+                strlen(STR_CONNECTION_KEEP_ALIVE_HEADER)
+        };
+    } else {
+        resp->headers[header_idx] = (struct http_header_t) {
+            STR_CONNECTION_CLOSE_HEADER,
+            strlen(STR_CONNECTION_CLOSE_HEADER)
+        };
+    }
     header_idx++;
 
     int build_result = build_date_header(&resp->headers[header_idx]);
