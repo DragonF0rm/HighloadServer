@@ -203,16 +203,20 @@ enum http_state_t parse_http_request(char* req_str, struct http_request_t* req) 
         return BAD_REQUEST;
     }
 
-    parse_http_req_headers(&cursor, req);
-    log(DEBUG, "HTTP headers parsed:");
+    if (req->headers_count > 0) {
+        parse_http_req_headers(&cursor, req);
+        log(DEBUG, "HTTP headers parsed:");
 #ifdef DEBUG_MODE
-    for (size_t i = 0; i < req->headers_count; i++) {
-        log(DEBUG, "%.*s", req->headers[i].len - 2, req->headers[i].text);
-    }
+        for (size_t i = 0; i < req->headers_count; i++) {
+            log(DEBUG, "%.*s", req->headers[i].len - 2, req->headers[i].text);
+        }
 #endif
-    if (req->headers_count == 0) {
-        log(DEBUG, "parse_http_request returning INTERNAL_SERVER_ERROR, unable to parse headers");
-        return INTERNAL_SERVER_ERROR;
+        if (req->headers_count == 0) {
+            log(DEBUG, "parse_http_request returning INTERNAL_SERVER_ERROR, unable to parse headers");
+            return INTERNAL_SERVER_ERROR;
+        }
+    } else {
+        log(DEBUG, "There are no headers to parse in request");
     }
 
     return OK;
