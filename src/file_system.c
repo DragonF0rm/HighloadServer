@@ -149,8 +149,6 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
             log(ERROR, "Unable to open file: %s", strerror(errno));
             return errno_to_file_state(errno);
         }
-
-
     }
 
     ssize_t file_len = lseek(fd, 0, SEEK_END);

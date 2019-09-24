@@ -151,7 +151,7 @@ static void respond_with_err(struct evbuffer* output, enum http_state_t code) {
     header_idx++;
 
     response.code = code;
-    response.http_version = HTTPv1_1; //TODO put in the config???
+    response.http_version = HTTPv1_0; //TODO put in the config???
     response.file_to_send = (struct file_t)FILE_INITIALIZER;
     response.headers = headers_arr;
     response.headers_count = headers_count;
