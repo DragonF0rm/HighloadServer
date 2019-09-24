@@ -28,9 +28,26 @@ static void parse_http_req_method(char** req_str, struct http_request_t* req) {
     req->method = METHOD_UNDEFINED;
 }
 
+static void url_decode(char* url) {
+    char url_repl_buf[4096 * 4];
+    char* url_repl = strcpy(url_repl_buf, url);
+    if (url_repl == NULL) {
+        log(ERROR, "Unable to copy URL to buffer");
+        return;
+    }
+    char* cursor = strchr(url_repl, '%');
+    while (cursor != NULL) {
+        int hex_chr = 0;
+        sscanf(cursor + 1, "%x", &hex_chr);
+        char chr = (char)hex_chr;
+        *cursor = chr;
+        strcpy(cursor + 1, cursor + 3);
+        cursor = strchr(cursor, '%');
+    }
+    strcpy(url, url_repl);
+}
+
 static void parse_http_req_uri(char** req_str, struct http_request_t* req) {
-    //TODO parse percent-encoded uri
-    //TODO parse URI correctly
     if (req_str == NULL || *req_str == NULL || req == NULL) {
         log(ERROR, "Invalid function arguments");
         return;
@@ -44,6 +61,7 @@ static void parse_http_req_uri(char** req_str, struct http_request_t* req) {
     }
     **req_str = '\0';
     *req_str += 1;
+    url_decode(req->URI);
 }
 
 static void parse_http_req_proto_ver(char** req_str, struct http_request_t* req) {
