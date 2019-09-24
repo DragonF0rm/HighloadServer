@@ -8,5 +8,5 @@ RUN ./main.sh
 RUN useradd httpd
 USER httpd
 EXPOSE 80
-ENTRYPOINT ["./bin/HighloadServer", "/etc/httpd.conf", "2>&1"]
+ENTRYPOINT ["id httpd | sed 's/uid=//; s/(.*$//g' |", "./bin/HighloadServer", "/etc/httpd.conf"]
 

@@ -331,7 +331,7 @@ static void accept_error_cb(struct evconnlistener *listener, void *ctx) {
    log(ERROR, "Got an error %d (%s) on the listener while accepting", err, evutil_socket_error_to_string(err));
 }
 
-int listen_and_serve(u_int16_t port) {
+int listen_and_serve(u_int16_t port, int uid) {
    //TODO use <int event_config_set_num_cpus_hint(struct event_config *cfg, int cpus)> ???
    //TODO make events with priority?
    //TODO set read low watermark?
@@ -364,6 +364,14 @@ int listen_and_serve(u_int16_t port) {
       return EXIT_FAILURE;
    }
    evconnlistener_set_error_cb(listener, accept_error_cb);
+
+   if(getuid() == 0 && uid > 0) {
+       log(DEBUG, "Dropping privilage");
+       setuid(uid);
+       if (errno != 0) {
+           log(ERROR, "Error while dropping privilage: %s", strerror(errno));
+       }
+   }
 
    event_base_dispatch(base);
    return 0;
