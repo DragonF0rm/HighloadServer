@@ -303,9 +303,6 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
 
    free(req.headers);
    free(req_str);
-   if (resp.file_to_send.fd > 0) {
-       close(resp.file_to_send.fd);
-   }
 }
 
 static void conn_event_cb(struct bufferevent *bev, short events, void *ctx) {
