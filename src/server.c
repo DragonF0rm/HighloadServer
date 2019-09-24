@@ -18,6 +18,7 @@ static void socket_close_cb(struct evbuffer *buffer, const struct evbuffer_cb_in
     if (evbuffer_get_length(buffer) == 0) {
         log(DEBUG, "Freeing the bufferevent");
         close(bufferevent_getfd((struct bufferevent*)arg));
+        evbuffer_remove_cb(buffer, socket_close_cb, arg);
     }
 }
 
