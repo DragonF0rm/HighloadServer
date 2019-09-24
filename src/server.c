@@ -117,8 +117,8 @@ static void respond_with_err(struct evbuffer* output, enum http_state_t code) {
     size_t header_idx = 0;
 
     headers_arr[header_idx] = (struct http_header_t){
-            STR_CONNECTION_HEADER,
-            strlen(STR_CONNECTION_HEADER)
+            STR_CONNECTION_CLOSE_HEADER,
+            strlen(STR_CONNECTION_CLOSE_HEADER)
     };
     header_idx += 1;
 

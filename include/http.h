@@ -36,7 +36,8 @@ enum http_state_t {
 #define STR_405_METHOD_NOT_ALLOWED "405 Method Not Allowed\0"
 #define STR_500_INTERNAL_SERVER_ERROR "500 Internal Server Error\0"
 
-#define STR_CONNECTION_HEADER "Connection: keep-alive\r\n\0"
+#define STR_CONNECTION_KEEP_ALIVE_HEADER "Connection: keep-alive\r\n\0"
+#define STR_CONNECTION_CLOSE_HEADER "Connection: close\r\n\0"
 #define STR_DEFAULT_DATE_HEADER "Date: Thu, 1 Jan 1970 00:00:00 GMT\r\n\0"
 #define STR_SERVER_HEADER "Server: "APP_NAME"/"VERSION"\r\n\0"
 #define STR_CONTENT_TYPE_HEADER "Content-Type: \0"
