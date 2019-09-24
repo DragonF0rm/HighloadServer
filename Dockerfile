@@ -1,5 +1,5 @@
-MAINTAINER "Uymin Maksim"
 FROM ubuntu:latest
+MAINTAINER "Uymin Maksim"
 WORKDIR /opt/httpd
 COPY . .
 RUN apt-get update && yes | \
