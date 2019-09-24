@@ -367,7 +367,7 @@ int listen_and_serve(u_int16_t port) {
 
    if(getuid() == 0) {
        log(DEBUG, "Dropping privilage");
-       FILE* pp = popen("id" DEFAULT_USER "| sed 's/uid=//; s/(.*$//g'", "r");
+       FILE* pp = popen("id " DEFAULT_USER "| sed 's/uid=//; s/(.*$//g'", "r");
        if (pp == NULL) {
            log(ERROR, "Unable to open pipe");
            return -1;
