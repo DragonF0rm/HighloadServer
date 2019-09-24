@@ -41,7 +41,7 @@ enum http_state_t {
 #define STR_SERVER_HEADER "Server: "APP_NAME"/"VERSION"\r\n\0"
 #define STR_CONTENT_TYPE_HEADER "Content-Type: \0"
 #define STR_CONTENT_LENGTH_HEADER "Content-Length: \0"
-#define STR_CONTENT_LENGTH_ZERO_HEADER "Content-Length: 0\0"
+#define STR_CONTENT_LENGTH_ZERO_HEADER "Content-Length: 0\r\n\0"
 
 struct http_header_t {
     char* text;
