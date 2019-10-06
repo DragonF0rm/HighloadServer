@@ -324,9 +324,8 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
 }
 
 static void conn_event_cb(struct bufferevent *bev, short events, void *ctx) {
-   if (events & BEV_EVENT_ERROR)
+   if (events & BEV_EVENT_ERROR) {
        log(ERROR, "Got some error on bufferevent, ERRNO: %d",errno);
-   if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
        bufferevent_free(bev);
    }
 }
