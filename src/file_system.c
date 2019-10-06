@@ -129,7 +129,7 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
         fd = open(absolute_path, O_RDONLY | O_NONBLOCK);
         if (fd < 0) {
             log(ERROR, "Unable to open file: %s", strerror(errno));
-            return FILE_STATE_FORBIDDEN;
+            return errno_to_file_state(errno);
         }
     } else if (fd < 0) {
         log(ERROR, "Unable to open file by absolute path: %s", strerror(errno));
@@ -147,7 +147,7 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
         fd = open(absolute_path, O_RDONLY | O_NONBLOCK);
         if (fd < 0) {
             log(ERROR, "Unable to open file: %s", strerror(errno));
-            return errno_to_file_state(errno);
+            return FILE_STATE_FORBIDDEN;
         }
     }
 
