@@ -18,9 +18,13 @@
 static void socket_close_cb(struct evbuffer *buffer, const struct evbuffer_cb_info *info, void *arg) {
     if (evbuffer_get_length(buffer) == 0) {
         log(DEBUG, "Freeing the bufferevent");
-        int fd = bufferevent_getfd((struct bufferevent*)arg);
-        log(WARNING, "Closing file descriptor %d", fd);
-        close(fd);
+        struct bufferevent* bev = (struct bufferevent*)arg;
+        struct evbuffer* output = bufferevent_get_output(bev);
+        if (evbuffer_get_length(output) == 0) {
+            int fd = bufferevent_getfd(bev);
+            log(WARNING, "Closing file descriptor %d", fd);
+            close(fd);
+        }
     }
 }
 
