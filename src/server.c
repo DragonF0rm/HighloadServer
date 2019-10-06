@@ -323,99 +323,113 @@ static void conn_read_cb(struct bufferevent *bev, void *ctx) {
 }
 
 static void conn_event_cb(struct bufferevent *bev, short events, void *ctx) {
-   if (events & BEV_EVENT_ERROR) {
-       log(ERROR, "Got some error on bufferevent, ERRNO: %d",errno);
-       bufferevent_free(bev);
-   }
+    log(DEBUG, "On conn_event_cb()");
+    if (events & BEV_EVENT_ERROR) {
+        log(ERROR, "Got some error on bufferevent: %s",strerror(errno));
+        bufferevent_free(bev);
+    }
 }
 
 static void accept_conn_cb(struct evconnlistener *listener,
                            evutil_socket_t fd, struct sockaddr *address, int socklen,
-                           void *ctx)
-{
-   /* We got a new connection! Set up a bufferevent for it */
-   struct event_base *base = evconnlistener_get_base(listener);
-   int socket = accept(fd, NULL, NULL);
-   struct bufferevent *bev = bufferevent_socket_new(base, socket, BEV_OPT_CLOSE_ON_FREE);
+                           void *ctx) {
+    /* We got a new connection! Set up a bufferevent for it */
+    log(DEBUG, "On accept_conn_cb(), fd: %d", fd);
+    struct event_base *base = evconnlistener_get_base(listener);
+    int socket = accept(fd, address, socklen);
+    if (socket < 0) {
+        log(ERROR, "Unable to accept connection: %s", strerror(errno));
+    } else {
+        log(DEBUG, "Connection accepted, socket fd: %d", socket);
+    }
+    struct bufferevent *bev = bufferevent_socket_new(base, socket, BEV_OPT_CLOSE_ON_FREE);
 
-   bufferevent_setcb(bev, conn_read_cb, NULL, conn_event_cb, NULL);
+    bufferevent_setcb(bev, conn_read_cb, NULL, conn_event_cb, NULL);
 
-   bufferevent_enable(bev, EV_READ|EV_WRITE);
+    bufferevent_enable(bev, EV_READ|EV_WRITE);
 }
 
 static void accept_error_cb(struct evconnlistener *listener, void *ctx) {
-   int err = EVUTIL_SOCKET_ERROR();
-   log(ERROR, "Got an error %d (%s) on the listener while accepting", err, evutil_socket_error_to_string(err));
+    log(DEBUG, "On accept_error_cb()");
+    int err = EVUTIL_SOCKET_ERROR();
+    log(ERROR, "Got an error %d (%s) on the listener while accepting", err, evutil_socket_error_to_string(err));
 }
 
 int listen_and_serve(u_int16_t port) {
-   //TODO use <int event_config_set_num_cpus_hint(struct event_config *cfg, int cpus)> ???
-   //TODO make events with priority?
-   //TODO set read low watermark?
-   //TODO create custom listener?
-   struct event_base *base;
-   struct evconnlistener *listener;
-   struct sockaddr_in sin;
+    //TODO use <int event_config_set_num_cpus_hint(struct event_config *cfg, int cpus)> ???
+    //TODO make events with priority?
+    //TODO set read low watermark?
+    //TODO create custom listener?
+    struct event_base *base;
+    struct evconnlistener *listener;
+    struct sockaddr_in sin;
 
-   base = event_base_new();
-   if (!base) {
-       log(FATAL, "Unable to open event base");
-       return EXIT_FAILURE;
-   }
-   log(INFO, "libevent backend: %s", event_base_get_method(base));
+    base = event_base_new();
+    if (!base) {
+        log(FATAL, "Unable to open event base");
+        return EXIT_FAILURE;
+    }
+    log(INFO, "libevent backend: %s", event_base_get_method(base));
 
-   memset(&sin, 0, sizeof(sin));
-   sin.sin_family = AF_INET;
-   sin.sin_addr.s_addr = htonl(0); //listen on 0.0.0.0
-   sin.sin_port = htons(port);
+    memset(&sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = htonl(0); //listen on 0.0.0.0
+    sin.sin_port = htons(port);
 
-   listener = evconnlistener_new_bind(
-           base,
-           accept_conn_cb,
-           NULL,
-           LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
-           -1,
-           (struct sockaddr*)&sin, sizeof(sin));
-   if (!listener) {
-      log(FATAL, "Couldn't create listener, ERRNO: %d %s", errno, strerror(errno));
-      return EXIT_FAILURE;
-   }
-   evconnlistener_set_error_cb(listener, accept_error_cb);
+    listener = evconnlistener_new_bind(
+            base,
+            accept_conn_cb,
+            NULL,
+            LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
+            -1,
+            (struct sockaddr*)&sin, sizeof(sin));
+    if (!listener) {
+        log(FATAL, "Couldn't create listener, ERRNO: %d %s", errno, strerror(errno));
+        return EXIT_FAILURE;
+    }
+    evconnlistener_set_error_cb(listener, accept_error_cb);
 
-   if(getuid() == 0) {
-       log(DEBUG, "Dropping privilage");
-       FILE* pp = popen("id " DEFAULT_USER "| sed 's/uid=//; s/(.*$//g'", "r");
-       if (pp == NULL) {
-           log(ERROR, "Unable to open pipe");
-           return -1;
-       }
-       int uid = 0;
-       fscanf(pp, "%d", &uid);
-       fclose(pp);
-       setuid(uid);
-       if (errno != 0) {
-           log(ERROR, "Error while dropping privilage: %s", strerror(errno));
-           return -1;
-       }
-       log(INFO, "Privilage dropped to uid: %d", uid);
-   }
+#ifdef DEBUG_MODE
+    log(DEBUG, "Listening socket fd: %d", evconnlistener_get_fd(listener));
+#endif
 
-   /*pid_t pid = 0;
-   for (int i = 0; i < CPU_LIMIT - 1; i++) {
-       switch(pid=fork()) {
-           case -1: {
-               log(ERROR, "Fork caused error: %s", strerror(errno));
-           }
-           case 0 : {
-               event_base_dispatch(base);
-               event_base_free(base);
-           }
-           default : {
-               log(INFO, "Forked successfully, PID=%d", pid);
-           }
-       }
-   }*/
-   event_base_dispatch(base);
-   event_base_free(base);
-   return 0;
+    if(getuid() == 0) {
+        log(DEBUG, "Dropping privilage");
+        FILE* pp = popen("id " DEFAULT_USER "| sed 's/uid=//; s/(.*$//g'", "r");
+        if (pp == NULL) {
+            log(ERROR, "Unable to open pipe");
+            return -1;
+        }
+        int uid = 0;
+        fscanf(pp, "%d", &uid);
+        fclose(pp);
+        setuid(uid);
+        if (errno != 0) {
+            log(ERROR, "Error while dropping privilage: %s", strerror(errno));
+            return -1;
+        }
+        log(INFO, "Privilage dropped to uid: %d", uid);
+    }
+
+#ifndef DEBUG_MODE
+    pid_t pid = 0;
+    for (int i = 0; i < CPU_LIMIT - 1; i++) {
+        switch(pid=fork()) {
+            case -1: {
+                log(ERROR, "Fork caused error: %s", strerror(errno));
+            }
+            case 0 : {
+                event_base_dispatch(base);
+                event_base_free(base);
+            }
+            default : {
+                log(INFO, "Forked successfully, PID=%d", pid);
+            }
+        }
+    }
+#endif
+
+    event_base_dispatch(base);
+    event_base_free(base);
+    return 0;
 }
