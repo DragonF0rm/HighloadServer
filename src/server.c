@@ -23,7 +23,7 @@ static void socket_close_cb(struct evbuffer *buffer, const struct evbuffer_cb_in
         if (evbuffer_get_length(output) == 0) {
             int fd = bufferevent_getfd(bev);
             log(WARNING, "Closing file descriptor %d", fd);
-            close(fd);
+            bufferevent_free(bev);
         }
     }
 }

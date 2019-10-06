@@ -66,11 +66,9 @@ static enum file_state_t errno_to_file_state(int err_no) {
         case ELOOP:
         case ENAMETOOLONG:
         case ENOENT:
+        case EACCES:
         case ENOTDIR: {
             return FILE_STATE_NOT_FOUND;
-        }
-        case EACCES: {
-            return FILE_STATE_FORBIDDEN;
         }
         default: {
             return FILE_STATE_INTERNAL_ERROR;
