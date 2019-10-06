@@ -18,7 +18,9 @@
 static void socket_close_cb(struct evbuffer *buffer, const struct evbuffer_cb_info *info, void *arg) {
     if (evbuffer_get_length(buffer) == 0) {
         log(DEBUG, "Freeing the bufferevent");
-        close(bufferevent_getfd((struct bufferevent*)arg));
+        int fd = bufferevent_getfd((struct bufferevent*)arg);
+        log(WARNING, "Closing file descriptor %d", fd);
+        close(fd);
     }
 }
 
@@ -336,14 +338,7 @@ static void accept_conn_cb(struct evconnlistener *listener,
     /* We got a new connection! Set up a bufferevent for it */
     log(DEBUG, "On accept_conn_cb(), fd: %d", fd);
     struct event_base *base = evconnlistener_get_base(listener);
-    socklen_t socket_len = (socklen_t)socklen;
-    int socket = accept(fd, address, &socket_len);
-    if (socket < 0) {
-        log(ERROR, "Unable to accept connection: %s", strerror(errno));
-    } else {
-        log(DEBUG, "Connection accepted, socket fd: %d", socket);
-    }
-    struct bufferevent *bev = bufferevent_socket_new(base, socket, BEV_OPT_CLOSE_ON_FREE);
+    struct bufferevent *bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
 
     bufferevent_setcb(bev, conn_read_cb, NULL, conn_event_cb, NULL);
 
