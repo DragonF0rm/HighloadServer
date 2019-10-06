@@ -336,7 +336,8 @@ static void accept_conn_cb(struct evconnlistener *listener,
     /* We got a new connection! Set up a bufferevent for it */
     log(DEBUG, "On accept_conn_cb(), fd: %d", fd);
     struct event_base *base = evconnlistener_get_base(listener);
-    int socket = accept(fd, address, socklen);
+    socklen_t socket_len = (socklen_t)socklen;
+    int socket = accept(fd, address, &socket_len);
     if (socket < 0) {
         log(ERROR, "Unable to accept connection: %s", strerror(errno));
     } else {
