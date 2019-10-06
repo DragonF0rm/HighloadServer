@@ -17,7 +17,9 @@
 static void socket_close_cb(struct evbuffer *buffer, const struct evbuffer_cb_info *info, void *arg) {
     if (evbuffer_get_length(buffer) == 0) {
         log(DEBUG, "Freeing the bufferevent");
-        close(bufferevent_getfd((struct bufferevent*)arg));
+        if (!evutil_make_listen_socket_reuseable(bufferevent_getfd((struct bufferevent*)arg))) {
+            log(DEBUG, "Error while closing the connection: %s", evutil_socket_error_to_string(errno));
+        }
         evbuffer_remove_cb(buffer, socket_close_cb, arg);
     }
 }
