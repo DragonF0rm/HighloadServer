@@ -97,7 +97,7 @@ static void respond(struct bufferevent* bev, struct evbuffer* output, struct htt
     }
 
     if(connection_close) {
-        evbuffer_add_cb(output, socket_close_cb, output);
+        evbuffer_add_cb(output, socket_close_cb, bev);
     }
 }
 
