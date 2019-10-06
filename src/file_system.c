@@ -66,9 +66,11 @@ static enum file_state_t errno_to_file_state(int err_no) {
         case ELOOP:
         case ENAMETOOLONG:
         case ENOENT:
-        case EACCES:
         case ENOTDIR: {
             return FILE_STATE_NOT_FOUND;
+        }
+        case EACCES: {
+            return FILE_STATE_FORBIDDEN;
         }
         default: {
             return FILE_STATE_INTERNAL_ERROR;
@@ -127,7 +129,7 @@ enum file_state_t inspect_file(char* path, struct file_t* file, bool should_get_
         fd = open(absolute_path, O_RDONLY | O_NONBLOCK);
         if (fd < 0) {
             log(ERROR, "Unable to open file: %s", strerror(errno));
-            return errno_to_file_state(errno);
+            return FILE_STATE_FORBIDDEN;
         }
     } else if (fd < 0) {
         log(ERROR, "Unable to open file by absolute path: %s", strerror(errno));
