@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <zconf.h>
+#include <event.h>
 
 #include "../include/server.h"
 #include "../include/log.h"
@@ -17,10 +18,8 @@
 static void socket_close_cb(struct evbuffer *buffer, const struct evbuffer_cb_info *info, void *arg) {
     if (evbuffer_get_length(buffer) == 0) {
         log(DEBUG, "Freeing the bufferevent");
-        if (evutil_make_listen_socket_reuseable(bufferevent_getfd((struct bufferevent*)arg))) {
-            log(DEBUG, "Error while closing the connection: %s", evutil_socket_error_to_string(errno));
-        }
-        evbuffer_remove_cb(buffer, socket_close_cb, arg);
+        evbuffer_free(bufferevent_get_output((struct bufferevent*)arg));
+        evbuffer_free(bufferevent_get_input((struct bufferevent*)arg));
     }
 }
 
@@ -402,7 +401,7 @@ int listen_and_serve(u_int16_t port) {
        log(INFO, "Privilage dropped to uid: %d", uid);
    }
 
-   pid_t pid = 0;
+   /*pid_t pid = 0;
    for (int i = 0; i < CPU_LIMIT - 1; i++) {
        switch(pid=fork()) {
            case -1: {
@@ -410,12 +409,14 @@ int listen_and_serve(u_int16_t port) {
            }
            case 0 : {
                event_base_dispatch(base);
+               event_base_free(base);
            }
            default : {
                log(INFO, "Forked successfully, PID=%d", pid);
            }
        }
-   }
+   }*/
    event_base_dispatch(base);
+   event_base_free(base);
    return 0;
 }
