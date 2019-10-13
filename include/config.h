@@ -8,7 +8,7 @@ void init_config(int cpu_limit_arg, const char* document_root_arg);
 //General settings
 #define VERSION "1.1"
 #define APP_NAME "HighloadServer"
-#define DEBUG_MODE
+//#define DEBUG_MODE
 #define DEFAULT_USER "httpd"
 #define DEFAULT_PORT 80
 int _get_cpu_limit(void);
