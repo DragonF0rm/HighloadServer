@@ -13,8 +13,6 @@ int parse_config(const char *conf_path, int *cpu_limit, char **document_root) {
         return -1;
     }
 
-    //Govnocod detected
-
     bool num_cpu_inited = false;
     bool document_root_inited = false;
 
